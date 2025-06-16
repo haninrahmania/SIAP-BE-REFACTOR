@@ -30,7 +30,9 @@ SECRET_KEY = 'django-insecure-3@5wx%(^*zl68l(o$^m-3%cvjv0g&mom1ra=oj5f048_al57s7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not PRODUCTION
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'siap-be-production.up.railway.app', 'considerate-trust-production.up.railway.app']
+# ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'siap-be-production.up.railway.app', 'considerate-trust-production.up.railway.app']
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Application definition
 
@@ -102,25 +104,48 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'project_django.wsgi.application'
 
-PRODUCTION = "postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway"
+# PRODUCTION = "postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway"
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': "railway",  # Nama default jika tidak ada DATABASE_URL
-        'USER': "postgres",  # Username default
-        'PASSWORD': "STunTjGwaafzzvGqJIdgShEUBuOvdqCQ",  # Password default (ganti dengan password aktual jika diperlukan)
-        'HOST': "postgres.railway.internal",  # Default host
-        'PORT': '5432',  # Default port
-    }
-}
+PRODUCTION = os.getenv('DATABASE_PUBLIC_URL') is not None
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': "railway",  # Nama default jika tidak ada DATABASE_URL
+#         'USER': "postgres",  # Username default
+#         'PASSWORD': "STunTjGwaafzzvGqJIdgShEUBuOvdqCQ",  # Password default (ganti dengan password aktual jika diperlukan)
+#         'HOST': "postgres.railway.internal",  # Default host
+#         'PORT': '5432',  # Default port
+#     }
+# }
+
+# if PRODUCTION:
+#     DATABASES['default'] = dj_database_url.config(
+#         default="postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway",
+#         conn_max_age=600,
+#         ssl_require=True
+#     )
 
 if PRODUCTION:
-    DATABASES['default'] = dj_database_url.config(
-        default="postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway",
-        conn_max_age=600,
-        ssl_require=True
-    )
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv("DATABASE_PUBLIC_URL"),
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': 'siap', 
+            'USER': 'postgres',
+            'PASSWORD': 'secret99',
+            'HOST': 'localhost', 
+            'PORT': '5432',
+
+        }
+    }
 
 
 AUTH_USER_MODEL = 'accounts.User'
