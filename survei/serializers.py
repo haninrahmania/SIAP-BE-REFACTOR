@@ -1,23 +1,41 @@
 from rest_framework import serializers
 from .models import Survei
 from klien.models import DataKlien
+from souvenir.models import Souvenir
+
+class DataKlienSerializer(serializers.ModelSerializer):
+    """Used for populating searchable dropdown."""
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DataKlien
+        fields = ['id', 'nama_perusahaan', 'nama_klien', 'display_name']
+
+    def get_display_name(self, obj):
+        return f"{obj.nama_perusahaan} - {obj.nama_klien}"
+
 
 class SurveiGet(serializers.ModelSerializer):
-    nama_klien = serializers.CharField(source='klien.nama_perusahaan', read_only=True)
+    nama_klien = serializers.SerializerMethodField()
 
     class Meta:
         model = Survei
         fields = [
             'id',
-            'nama_survei',
+            'judul_survei',
             'nama_klien',
-            'waktu_mulai_survei',
-            'waktu_berakhir_survei',
-            'harga_survei',
+            'jenis_survei',
             'ruang_lingkup',
             'wilayah_survei',
+            'tipe_survei',
             'jumlah_responden',
-            'tipe_survei'
+            'harga_survei',
+            'tanggal_spk',
+            'tanggal_ws',
+            'tanggal_selesai',
+            'milestone_1',
+            'milestone_2',
+            'milestone_3',
         ]
 
 class SurveiPost(serializers.ModelSerializer):
@@ -36,31 +54,38 @@ class SurveiPost(serializers.ModelSerializer):
     class Meta:
         model = Survei
         fields = (
-            "id", "nama_survei", "waktu_mulai_survei",
-            "waktu_berakhir_survei", "klien_id", "nama_klien",
-            "harga_survei", "ruang_lingkup", "wilayah_survei",
-            "wilayah_survei_names", "jumlah_responden", "tipe_survei"
+            'id', 'judul_survei', 'klien_id', 'nama_klien', 'jenis_survei',
+            'ruang_lingkup', 'wilayah_survei', 'wilayah_survei_names',
+            'tipe_survei', 'jumlah_responden', 'harga_survei',
+            'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
+            'milestone_1', 'milestone_2', 'milestone_3',
         )
 
     def get_nama_klien(self, obj):
-        """Return nama_perusahaan from the related DataKlien model as nama_klien."""
-        return obj.klien.nama_perusahaan if obj.klien else None
+        return str(obj.klien) if obj.klien else None
 
     def get_wilayah_survei_names(self, obj):
-        """Concatenate wilayah_survei names as a comma-separated string."""
         return obj.wilayah_survei
 
     def validate_wilayah_survei(self, value):
-        """Ensure wilayah_survei is a list of dictionaries."""
         if not isinstance(value, list):
-            raise serializers.ValidationError("wilayah_survei must be a list of objects.")
+            raise serializers.ValidationError("wilayah_survei must be a list.")
         for item in value:
             if 'name' not in item:
-                raise serializers.ValidationError("Each wilayah_survei object must have a 'name' field.")
+                raise serializers.ValidationError("Each item must have a 'name' field.")
         return value
 
     def create(self, validated_data):
-        wilayah_survei = validated_data.pop('wilayah_survei', [])
-        # Convert the wilayah_survei list into a string for saving
-        validated_data['wilayah_survei'] = ", ".join([wilayah['name'] for wilayah in wilayah_survei])
+        wilayah_data = validated_data.pop('wilayah_survei', [])
+        validated_data['wilayah_survei'] = ", ".join(w['name'] for w in wilayah_data)
         return super().create(validated_data)
+
+class SouvenirSerializer(serializers.ModelSerializer):
+    out_of_stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Souvenir
+        fields = ['id', 'nama_souvenir', 'jumlah_stok', 'jumlah_minimum', 'out_of_stock']
+
+    def get_out_of_stock(self, obj):
+        return obj.jumlah_stok < obj.jumlah_minimum
