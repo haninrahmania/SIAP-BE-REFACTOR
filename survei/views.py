@@ -1,10 +1,24 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import Survei
-from .serializers import SurveiPost
+from .serializers import SurveiPost, DataKlienSerializer
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from klien.models import DataKlien
+
+class SurveiViewSet(viewsets.ModelViewSet):
+    @action(detail=False, methods=['get'])
+    def init_data(self, request):
+        klien_qs = DataKlien.objects.filter(is_deleted=False)
+        klien_serialized = DataKlienSerializer(klien_qs, many=True).data
+
+        # bisa tambahkan souvenir juga jika perlu
+        return Response({
+            "klien_list": klien_serialized,
+        })
 
 class SurveiPagination(PageNumberPagination):
     page_size = 10
@@ -61,6 +75,14 @@ def delete_survei(request, id):
 
     survei.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+def survei_init_data(request):
+    klien_queryset = DataKlien.objects.filter(is_deleted=False)
+    klien_serialized = DataKlienSerializer(klien_queryset, many=True).data
+    return Response({
+        "klien_list": klien_serialized
+    })
 
 # @api_view(['GET'])
 # def get_survei_count_by_region(request):
