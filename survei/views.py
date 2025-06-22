@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from klien.models import DataKlien
+from souvenir.models import Souvenir
+from .serializers import SouvenirSerializer
 
 class SurveiViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
@@ -15,9 +17,12 @@ class SurveiViewSet(viewsets.ModelViewSet):
         klien_qs = DataKlien.objects.filter(is_deleted=False)
         klien_serialized = DataKlienSerializer(klien_qs, many=True).data
 
-        # bisa tambahkan souvenir juga jika perlu
+        souvenir_qs = Souvenir.objects.filter(is_deleted=False)
+        souvenir_serialized = SouvenirSerializer(souvenir_qs, many=True).data
+
         return Response({
             "klien_list": klien_serialized,
+            "souvenir_list": souvenir_serialized
         })
 
 class SurveiPagination(PageNumberPagination):

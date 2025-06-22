@@ -85,7 +85,15 @@ class SouvenirSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Souvenir
-        fields = ['id', 'nama_souvenir', 'jumlah_stok', 'jumlah_minimum', 'out_of_stock']
+        fields = [
+            'id',
+            'nama_souvenir',
+            'jumlah_stok',
+            'jumlah_minimum',
+            'out_of_stock'
+        ]
 
     def get_out_of_stock(self, obj):
+        if obj.jumlah_stok is None or obj.jumlah_minimum is None:
+            return True  # anggap out of stock kalau data tidak lengkap
         return obj.jumlah_stok < obj.jumlah_minimum
