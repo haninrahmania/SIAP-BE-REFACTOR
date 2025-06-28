@@ -106,7 +106,7 @@ WSGI_APPLICATION = 'project_django.wsgi.application'
 
 # PRODUCTION = "postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway"
 
-PRODUCTION = os.getenv('DATABASE_PUBLIC_URL') is not None
+PRODUCTION = False
 
 # DATABASES = {
 #     'default': {
