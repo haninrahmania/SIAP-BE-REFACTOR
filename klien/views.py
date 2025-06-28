@@ -120,7 +120,7 @@ def get_klien_file_info(klien_instance):
                 file_storage_path = os.path.join(dir_prefix, filename)
                 
                 # Buat URL untuk download dan preview
-                base_endpoint = f"/api/klien/{klien_instance.id}/download-dokumen/"
+                base_endpoint = f"klien/{klien_instance.id}/download-dokumen/"
                 
                 return {
                     'path': file_storage_path,
