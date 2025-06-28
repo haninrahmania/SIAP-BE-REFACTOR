@@ -1,5 +1,9 @@
 from django.urls import path
 from .views import *
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'survei', SurveiViewSet, basename='survei')
 
 urlpatterns=[
     path("get-list-survei",get_list_survei),

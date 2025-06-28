@@ -52,10 +52,10 @@ def get_survei_detail(request, id):
 def add_survei(request):
     serializer = SurveiPost(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        instance = serializer.save()
+        return Response(SurveiPost(instance).data, status=201)
+    return Response(serializer.errors, status=400)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['PATCH'])
 def update_survei(request, id):

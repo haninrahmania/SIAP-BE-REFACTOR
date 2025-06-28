@@ -44,12 +44,13 @@ class SurveiPost(serializers.ModelSerializer):
         source='klien',
         write_only=True
     )
-    nama_klien = serializers.SerializerMethodField()
+    nama_klien = serializers.SerializerMethodField(read_only=True)
+
     wilayah_survei = serializers.ListField(
         child=serializers.DictField(),
         write_only=True
     )
-    wilayah_survei_names = serializers.SerializerMethodField()
+    wilayah_survei_names = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Survei
@@ -65,7 +66,7 @@ class SurveiPost(serializers.ModelSerializer):
         return str(obj.klien) if obj.klien else None
 
     def get_wilayah_survei_names(self, obj):
-        return obj.wilayah_survei
+        return obj.wilayah_survei.split(", ") if obj.wilayah_survei else []
 
     def validate_wilayah_survei(self, value):
         if not isinstance(value, list):
@@ -79,6 +80,7 @@ class SurveiPost(serializers.ModelSerializer):
         wilayah_data = validated_data.pop('wilayah_survei', [])
         validated_data['wilayah_survei'] = ", ".join(w['name'] for w in wilayah_data)
         return super().create(validated_data)
+
 
 class SouvenirSerializer(serializers.ModelSerializer):
     out_of_stock = serializers.SerializerMethodField()
