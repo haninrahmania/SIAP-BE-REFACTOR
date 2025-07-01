@@ -22,17 +22,13 @@ def sanitize_filename(text):
     """Membersihkan teks agar aman digunakan sebagai nama file."""
     if not text:
         return ""
-    # Hapus karakter spesial selain huruf, angka, spasi, dan tanda hubung
     sanitized = re.sub(r'[^\w\s-]', '', text)
-    # Ganti spasi dengan garis bawah
     sanitized = re.sub(r'[\s_]+', '_', sanitized)
-    # Hapus garis bawah di awal/akhir
     return sanitized.strip('_')
 
 def generate_custom_filename(nama_klien, nama_perusahaan, original_filename):
     """Membuat nama file kustom yang unik."""
     _, ext = os.path.splitext(original_filename)
-    
     clean_nama_klien = sanitize_filename(nama_klien)
     clean_nama_perusahaan = sanitize_filename(nama_perusahaan)
     
@@ -43,7 +39,6 @@ def generate_custom_filename(nama_klien, nama_perusahaan, original_filename):
     elif clean_nama_perusahaan:
         base_name = clean_nama_perusahaan
     else:
-        # Fallback jika tidak ada nama klien/perusahaan
         base_name, _ = os.path.splitext(original_filename)
 
     return f"{base_name}{ext}"
@@ -52,13 +47,13 @@ def get_client_file_path_prefix(klien_id):
     """Mengembalikan path prefix direktori file untuk klien."""
     return f'dokumen_klien/{klien_id}/'
 
+# [DIUBAH] Nama field disesuaikan menjadi 'dokumen_pendukung'
 def handle_single_file_upload(post_data, files_data):
     """
     Menangani upload satu file. Mengambil file dari request.FILES
     dan memberinya nama kustom.
     """
-    # Nama field 'dokumen' harus cocok dengan yang dikirim dari Frontend (FormData)
-    dokumen_field_name = 'dokumen'
+    dokumen_field_name = 'dokumen_pendukung' # <-- DIUBAH DARI 'dokumen'
     
     if dokumen_field_name in files_data:
         uploaded_file = files_data[dokumen_field_name]
@@ -73,7 +68,7 @@ def handle_single_file_upload(post_data, files_data):
         logger.info(f"Nama file kustom dibuat: {custom_filename}")
         return uploaded_file
     
-    logger.warning("Tidak ada file yang ditemukan di request.FILES dengan field 'dokumen'")
+    logger.warning(f"Tidak ada file yang ditemukan di request.FILES dengan field '{dokumen_field_name}'")
     return None
 
 def save_file(klien_instance, uploaded_file):
@@ -81,7 +76,6 @@ def save_file(klien_instance, uploaded_file):
     if not uploaded_file:
         return None
     
-    # Hapus file lama jika ada untuk memastikan hanya ada satu file
     delete_existing_files(klien_instance.id)
 
     target_path = os.path.join(get_client_file_path_prefix(klien_instance.id), uploaded_file.name)
@@ -97,12 +91,16 @@ def save_file(klien_instance, uploaded_file):
 def delete_existing_files(klien_id):
     """Menghapus semua file yang ada di direktori klien."""
     dir_prefix = get_client_file_path_prefix(klien_id)
-    if default_storage.exists(dir_prefix):
-        dirs, filenames = default_storage.listdir(dir_prefix)
-        for filename in filenames:
-            path_to_delete = os.path.join(dir_prefix, filename)
-            default_storage.delete(path_to_delete)
-            logger.info(f"File lama dihapus: {path_to_delete}")
+    try:
+        if default_storage.exists(dir_prefix):
+            dirs, filenames = default_storage.listdir(dir_prefix)
+            for filename in filenames:
+                path_to_delete = os.path.join(dir_prefix, filename)
+                default_storage.delete(path_to_delete)
+                logger.info(f"File lama dihapus: {path_to_delete}")
+    except Exception as e:
+        logger.error(f"Gagal menghapus file lama untuk klien {klien_id}: {e}", exc_info=True)
+
 
 def get_klien_file_info(klien_instance):
     """
@@ -115,11 +113,8 @@ def get_klien_file_info(klien_instance):
         if default_storage.exists(dir_prefix):
             dirs, filenames = default_storage.listdir(dir_prefix)
             if filenames:
-                # Ambil file pertama yang ditemukan
                 filename = filenames[0]
                 file_storage_path = os.path.join(dir_prefix, filename)
-                
-                # Buat URL untuk download dan preview
                 base_endpoint = f"klien/{klien_instance.id}/download-dokumen/"
                 
                 return {
@@ -170,7 +165,6 @@ def klien_list(request):
                 'daerah': klien.daerah,
                 'kategori_klien': klien.kategori_klien,
                 'no_telp': klien.no_telp,
-                # Frontend akan menggunakan `jumlah_dokumen` untuk menampilkan tombol
                 'jumlah_dokumen': 1 if file_info else 0,
             }
             results.append(klien_data)
@@ -189,10 +183,13 @@ def klien_create(request):
     """Membuat klien baru dan menyimpan satu file."""
     if request.method == 'POST':
         logger.info("=== KLIEN CREATE REQUEST ===")
-        form = DataKlienForm(request.POST)
+        form = DataKlienForm(request.POST, request.FILES) # Menambahkan request.FILES
         
         if form.is_valid():
-            klien = form.save()
+            klien = form.save(commit=False) # Jangan simpan dulu
+            
+            # Kita perlu menyimpan klien dulu untuk mendapatkan ID
+            klien.save()
             logger.info(f"Klien berhasil dibuat dengan ID: {klien.id}")
 
             uploaded_file = handle_single_file_upload(request.POST, request.FILES)
@@ -224,29 +221,43 @@ def klien_detail(request, id):
         'daerah': klien.daerah,
         'kategori_klien': klien.kategori_klien,
         'no_telp': klien.no_telp,
-        'jumlah_dokumen': 1 if file_info else 0,
-        'dokumen_info': file_info, # Mengirim info file lengkap
+        'dokumen_info': file_info,
     }
     return JsonResponse(response_data)
 
 
+# [DIUBAH] Logika update file dan hapus file ditambahkan
 @csrf_exempt
 def klien_update(request, id):
     """Memperbarui klien dan menangani pembaruan file."""
     klien = get_object_or_404(DataKlien, id=id, is_deleted=False)
     
     if request.method in ['POST', 'PUT']:
-        form = DataKlienForm(request.POST, instance=klien)
+        logger.info(f"=== KLIEN UPDATE REQUEST UNTUK ID: {id} ===")
+        form = DataKlienForm(request.POST, request.FILES, instance=klien)
+        
         if form.is_valid():
+            # Simpan dulu perubahan data teks
             klien = form.save()
+            logger.info(f"Data teks untuk klien {id} berhasil diupdate.")
             
+            # --- LOGIKA PENANGANAN FILE ---
+            
+            # 1. Periksa apakah ada file baru yang diunggah
             uploaded_file = handle_single_file_upload(request.POST, request.FILES)
             if uploaded_file:
-                # Jika ada file baru, simpan (fungsi save_file akan menghapus yang lama)
+                logger.info(f"File baru '{uploaded_file.name}' akan menggantikan file lama.")
                 save_file(klien, uploaded_file)
+            else:
+                # 2. Jika tidak ada file baru, periksa apakah ada flag untuk hapus
+                hapus_dokumen_flag = request.POST.get('hapus_dokumen') == 'true'
+                if hapus_dokumen_flag:
+                    logger.info(f"Flag 'hapus_dokumen' terdeteksi. Menghapus file untuk klien {id}.")
+                    delete_existing_files(klien.id)
 
             return JsonResponse({'id': klien.id, 'message': 'Klien berhasil diupdate'}, status=200)
         else:
+            logger.error(f"Update form validation failed: {form.errors.as_json()}")
             return JsonResponse({'error': 'Form validation failed', 'details': form.errors}, status=400)
             
     return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -259,7 +270,6 @@ def klien_delete(request, id):
         klien = get_object_or_404(DataKlien, id=id)
         klien.is_deleted = True
         klien.save()
-        # Optional: Hapus juga file-filenya dari storage
         delete_existing_files(id)
         return JsonResponse({'message': 'Klien berhasil dihapus'}, status=200)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
@@ -281,13 +291,15 @@ def download_dokumen(request, id):
     content_type, _ = mimetypes.guess_type(file_storage_path)
     content_type = content_type or 'application/octet-stream'
     
-    response = FileResponse(default_storage.open(file_storage_path, 'rb'), content_type=content_type)
-    
-    disposition = 'inline' if is_preview else 'attachment'
-    response['Content-Disposition'] = f'{disposition}; filename*=UTF-8\'\'{quote(filename)}'
-    
-    logger.info(f"Menyajikan file '{filename}' dengan disposisi '{disposition}'")
-    return response
+    try:
+        response = FileResponse(default_storage.open(file_storage_path, 'rb'), content_type=content_type)
+        disposition = 'inline' if is_preview else 'attachment'
+        response['Content-Disposition'] = f'{disposition}; filename*=UTF-8\'\'{quote(filename)}'
+        logger.info(f"Menyajikan file '{filename}' dengan disposisi '{disposition}'")
+        return response
+    except FileNotFoundError:
+        logger.error(f"File not found on storage: {file_storage_path}")
+        raise Http404("File tidak ditemukan di storage.")
 
 
 @csrf_exempt
@@ -301,8 +313,13 @@ def dokumen_info(request, id):
         
     file_storage_path = file_info['path']
     file_exists = file_info.get('file_exists', False)
-    file_size = default_storage.size(file_storage_path) if file_exists else 0
-    
+    file_size = 0
+    if file_exists:
+        try:
+            file_size = default_storage.size(file_storage_path)
+        except FileNotFoundError:
+            file_exists = False
+
     file_detail = {
         'filename': file_info['name'],
         'file_size': file_size,
@@ -312,6 +329,6 @@ def dokumen_info(request, id):
     }
     
     return JsonResponse({
-        'jumlah_dokumen': 1,
-        'file_details': [file_detail] # Frontend mengharapkan sebuah array
+        'jumlah_dokumen': 1 if file_exists else 0,
+        'file_details': [file_detail] if file_exists else []
     })
