@@ -9,7 +9,8 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from klien.models import DataKlien
 from souvenir.models import Souvenir
-from .serializers import SouvenirSerializer
+from .serializers import SouvenirSerializer, SurveiGet
+from collections import defaultdict
 
 class SurveiViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
@@ -35,7 +36,10 @@ def get_list_survei(request):
     paginator = SurveiPagination()
     survei = Survei.objects.all()
     result_page = paginator.paginate_queryset(survei, request)
-    serializer = SurveiPost(result_page, many=True)
+    
+    # GANTI DI SINI:
+    serializer = SurveiGet(result_page, many=True)
+
     return paginator.get_paginated_response(serializer.data)
 
 @api_view(['GET'])
@@ -54,6 +58,7 @@ def add_survei(request):
     if serializer.is_valid():
         instance = serializer.save()
         return Response(SurveiPost(instance).data, status=201)
+    print("ERROR ADD SURVEI:", serializer.errors)
     return Response(serializer.errors, status=400)
 
 
@@ -88,6 +93,31 @@ def survei_init_data(request):
     return Response({
         "klien_list": klien_serialized
     })
+
+@api_view(['GET'])
+def get_survei_count_by_souvenir(request):
+    survei_with_souvenir = Survei.objects.exclude(souvenir=None)
+    souvenir_counts = defaultdict(int)
+
+    for survei in survei_with_souvenir:
+        if survei.souvenir:
+            souvenir_id = survei.souvenir.id
+            souvenir_counts[souvenir_id] += 1
+
+    # Ambil nama souvenir berdasarkan ID
+    souvenir_names = Souvenir.objects.in_bulk(souvenir_counts.keys())
+
+    # Format data untuk frontend (misalnya untuk chart atau tabel)
+    data = [
+        {
+            "souvenir_id": sid,
+            "souvenir_name": souvenir_names[sid].nama_souvenir if sid in souvenir_names else "Unknown",
+            "count": count
+        }
+        for sid, count in souvenir_counts.items()
+    ]
+
+    return Response(data, status=status.HTTP_200_OK)
 
 # @api_view(['GET'])
 # def get_survei_count_by_region(request):

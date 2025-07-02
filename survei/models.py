@@ -43,6 +43,9 @@ class Survei(models.Model):
     milestone_1 = models.DateField(null=True, blank=True)
     milestone_2 = models.DateField(null=True, blank=True)
     milestone_3 = models.DateField(null=True, blank=True)
+    ppk = JSONField(default=list, blank=True)
+    peneliti = JSONField(default=list, blank=True)
+    jumlah_souvenir = models.IntegerField(default=0, null=True, blank=True)
 
     # Section 4: Souvenir
     souvenir = models.ForeignKey(
