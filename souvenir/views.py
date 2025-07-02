@@ -1,11 +1,10 @@
-from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import Souvenir
 from .serializers import SouvenirGet, SouvenirPost
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.views import APIView
+from urllib.parse import unquote
 
 
 class SouvenirPagination(PageNumberPagination):
@@ -18,7 +17,7 @@ class SouvenirPagination(PageNumberPagination):
 def get_list_souvenir(request):
     paginator = SouvenirPagination()
     # Hanya ambil item yang belum dihapus
-    souvenir = Souvenir.objects.filter(is_deleted=False)
+    souvenir = Souvenir.objects.filter(is_deleted=False).order_by("id")
     result_page = paginator.paginate_queryset(souvenir, request)
     serializer = SouvenirGet(result_page, many=True)
     return paginator.get_paginated_response(serializer.data)
@@ -58,8 +57,9 @@ def add_souvenir(request):
     # Jika tidak ada, lanjutkan untuk menyimpan souvenir baru
     serializer = SouvenirPost(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        instance = serializer.save()
+        get_serializer = SouvenirGet(instance)
+        return Response(get_serializer.data, status=status.HTTP_200_OK)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -93,16 +93,14 @@ def delete_souvenir(request, id):
     souvenir.save()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 @api_view(['GET'])
 def check_souvenir(request, nama_souvenir):
-    """
-    Menambahkan view untuk memeriksa apakah souvenir dengan nama yang sama ada,
-    termasuk yang sudah di-soft delete
-    """
     try:
-        souvenir = Souvenir.objects.filter(nama_souvenir=nama_souvenir).first()
-        if souvenir:
+        decoded_nama = unquote(nama_souvenir).strip()
+        print(f"Searching souvenir with name: '{decoded_nama}'")
+
+        souvenir = Souvenir.objects.filter(nama_souvenir__iexact=decoded_nama).first()
+        if souvenir is not None:
             return Response({
                 'id': souvenir.id,
                 'is_deleted': souvenir.is_deleted
