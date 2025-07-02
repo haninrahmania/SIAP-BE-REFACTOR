@@ -1,116 +1,165 @@
 from django.shortcuts import render
 
 import os
-import tempfile
+# import tempfile
 from django.http import FileResponse, HttpResponse, HttpResponseNotFound
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image
 from openpyxl.styles import Font
 from datetime import datetime
-from django.views.decorators.csrf import csrf_exempt
+# from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 import json
 from rest_framework.decorators import api_view
 from openpyxl.styles import Font
-from .models import InvoiceDP, InvoiceFinal, KwitansiDP, KwitansiFinal
+from .models import InvoiceDP, InvoiceFinal, KwitansiDP, KwitansiFinal, TemplateProposal, ProposalTemplateHistory, KontrakTemplateHistory
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from pptx import Presentation
+# from django.contrib.auth.decorators import login_required
+# from pptx import Presentation
 from django.core.files.storage import default_storage
+from decimal import Decimal
+from .serializers import TemplateProposalSerializer, ProposalTemplateHistorySerializer
+import aspose.slides as slides
+import aspose.pydrawing as drawing
+import io
 
 
 User = get_user_model()
 
-@csrf_exempt
+
+@api_view(['GET'])
+def convert_pptx_to_image(request):
+    folder_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/proposal/')
+
+    # Cari semua file .pptx dalam folder
+    pptx_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.pptx')]
+
+    if not pptx_files:
+        return HttpResponseNotFound("No proposal templates found.")
+
+    # Ambil file terbaru berdasarkan waktu modifikasi
+    latest_file = max(pptx_files, key=os.path.getmtime)
+
+    # Gunakan Aspose.Slides untuk membuka dan convert slide pertama
+    with slides.Presentation(latest_file) as presentation:
+        slide = presentation.slides[0]
+        bmp = slide.get_thumbnail(2.0, 2.0)  # Scale 2x
+
+        image_stream = io.BytesIO()
+        bmp.save(image_stream, drawing.imaging.ImageFormat.png)
+        image_stream.seek(0)
+
+        return FileResponse(image_stream, content_type='image/png')
+
+@api_view(['POST'])
+def upload_template_proposal(request):
+    file = request.FILES.get('template')
+    if not file:
+        return JsonResponse({'error': 'File not provided'}, status=400)
+
+    # Buat record history terlebih dahulu (tanpa file)
+    history = ProposalTemplateHistory.objects.create(uploaded_by=request.user)
+
+    # Simpan file ke folder manual
+    history_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/proposal')
+    os.makedirs(history_path, exist_ok=True)
+
+    # Tentukan path file manual
+    file_path = os.path.join(history_path, f'templateProposal_v{history.id}.pptx')
+
+    with open(file_path, 'wb+') as destination:
+        for chunk in file.chunks():
+            destination.write(chunk)
+
+    return JsonResponse({'message': 'Template uploaded', 'id': history.id}, status=201)
+
+@api_view(['DELETE'])
+def delete_template_proposal_by_id(request, id):
+    try:
+        template = ProposalTemplateHistory.objects.get(id=id)
+        template.file.delete(save=False)
+        template.delete()
+        return JsonResponse({"message": "Template deleted successfully."}, status=200)
+    except ProposalTemplateHistory.DoesNotExist:
+        return JsonResponse({"error": "Template not found."}, status=404)
+
+@api_view(['GET'])
+def get_proposal_template_history(request):
+    templates = ProposalTemplateHistory.objects.all().order_by('-uploaded_at')
+    serializer = ProposalTemplateHistorySerializer(templates, many=True)
+    return JsonResponse(serializer.data, safe=False)
+
+@api_view(['GET'])
+def list_template_proposals(request):
+    templates = TemplateProposal.objects.order_by('-uploaded_at')
+    serializer = TemplateProposalSerializer(templates, many=True)
+    return JsonResponse(serializer.data)
+
+@api_view(['GET'])
+def get_kontrak_template_history(request):
+    templates = KontrakTemplateHistory.objects.all().order_by('-uploaded_at')
+    serializer = ProposalTemplateHistorySerializer(templates, many=True)  # Reuse serializer if identical
+    return JsonResponse(serializer.data, safe=False)
+
+@api_view(['DELETE'])
+def delete_kontrak_template(request, id):
+    try:
+        template = KontrakTemplateHistory.objects.get(id=id)
+        template.file.delete(save=False)
+        template.delete()
+        return JsonResponse({"message": "Template deleted successfully."}, status=200)
+    except KontrakTemplateHistory.DoesNotExist:
+        return JsonResponse({"error": "Template not found."}, status=404)
+
+
+@api_view(['GET'])
+def download_template_kontrak(request):
+    template_id = request.GET.get('id')
+    if not template_id:
+        return JsonResponse({'error': 'Template ID is required'}, status=400)
+
+    filepath = os.path.join(settings.BASE_DIR, 'dokumen_pendukung', 'templates', 'kontrak', f'templateKontrak_v{template_id}.docx')
+    if os.path.exists(filepath):
+        return FileResponse(open(filepath, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    return HttpResponseNotFound("Template not found")
+
+@api_view(['POST'])
 def upload_template_kontrak(request):
-    if request.method == 'POST':
-        if 'template' not in request.FILES:
-            return JsonResponse({'error': 'No file provided'}, status=400)
+    file = request.FILES.get('template')
+    if not file or not file.name.endswith('.docx'):
+        return JsonResponse({'error': 'Only .docx files are allowed'}, status=400)
 
-        file = request.FILES['template']
-        
-        # Check if the file is a .ppt file
-        if not file.name.endswith('.docx'):
-            return JsonResponse({'error': 'Only .docx files are allowed'}, status=400)
+    template = KontrakTemplateHistory.objects.create(file=file, uploaded_by=request.user)
 
-        # Define the path where the file should be saved
-        file_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung', 'templates', 'templateKontrak.docx')
-        
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Delete the existing file if it exists
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    # Simpan file di folder `dokumen_pendukung/templates/kontrak/templateKontrak_v{id}.docx`
+    kontrak_folder = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/kontrak/')
+    os.makedirs(kontrak_folder, exist_ok=True)
 
-        # Save the new file
-        with open(file_path, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
+    versioned_path = os.path.join(kontrak_folder, f'templateKontrak_v{template.id}.docx')
+    with open(versioned_path, 'wb+') as dest:
+        for chunk in file.chunks():
+            dest.write(chunk)
 
-        return JsonResponse({'message': 'File uploaded successfully', 'file_name': 'templateKontrak.docx'}, status=200)
-
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    return JsonResponse({'message': 'Template kontrak uploaded', 'id': template.id}, status=201)
 
 @api_view(['GET']) 
-def download_template_kontrak(request):
-    docx_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateKontrak.docx')
-    
-    # Check if the file exists before opening it
-    if os.path.exists(docx_path):
-        response = FileResponse(open(docx_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response['Content-Disposition'] = 'attachment; filename="templateKontrak.docx"'
+def download_template_proposal(request):
+    template_id = request.GET.get('id')
+    if not template_id:
+        return JsonResponse({'error': 'Template ID is required'}, status=400)
+
+    # Tentukan path file berdasarkan id
+    filename = f'templateProposal_v{template_id}.pptx'
+    file_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung', 'templates', 'proposal', filename)
+
+    if os.path.exists(file_path):
+        response = FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
     else:
         return HttpResponseNotFound("Template file not found.")
 
-@csrf_exempt
-def upload_template_proposal(request):
-    if request.method == 'POST':
-        if 'template' not in request.FILES:
-            return JsonResponse({'error': 'No file provided'}, status=400)
-
-        file = request.FILES['template']
-        
-        # Check if the file is a .ppt file
-        if not file.name.endswith('.ppt'):
-            return JsonResponse({'error': 'Only .ppt files are allowed'}, status=400)
-
-        # Define the path where the file should be saved
-        file_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung', 'templates', 'templateProposal.ppt')
-        
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Delete the existing file if it exists
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-        # Save the new file
-        with open(file_path, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
-
-        return JsonResponse({'message': 'File uploaded successfully', 'file_name': 'templateProposal.ppt'}, status=200)
-
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-
-@api_view(['GET']) 
-def download_template_proposal(request):
-    if request.method == 'GET':
-        ppt_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateProposal.ppt')
-        
-        if os.path.exists(ppt_path):
-            response = FileResponse(open(ppt_path, 'rb'), content_type='application/vnd.ms-powerpoint')
-            response['Content-Disposition'] = 'attachment; filename="templateProposal.ppt"'
-            return response
-        else:
-            return HttpResponseNotFound("Template file not found.")
-    
-    # If not GET, return 405 directly
-    return JsonResponse({"detail": "Method not allowed"}, status=405)
 
 # Helper function to convert month to Roman numeral
 def month_to_roman(month):
@@ -132,19 +181,46 @@ def get_next_invoice_number():
         with open(counter_file_path, 'w') as file:
             file.write("0")  # Initialize counter at 0
 
-    # Read the current counter value
     with open(counter_file_path, 'r') as file:
-        last_number = int(file.read())
+        file_number = int(file.read())
 
-    # Increment and format the number with leading zeros
-    new_number = last_number + 1
-    formatted_number = f"{new_number:03}"
+    # Ambil nomor invoice terakhir dari InvoiceDP
+    latest_dp = (
+        InvoiceDP.objects
+        .filter(id__endswith=f'/{year}')
+        .order_by('-id')
+        .first()
+    )
+    dp_number = int(latest_dp.id.split('/')[0]) if latest_dp else 0
 
-    # Save the updated number back to the file
-    with open(counter_file_path, 'w') as file:
-        file.write(str(new_number))
+    # Ambil nomor invoice terakhir dari InvoiceFinal
+    latest_final = (
+        InvoiceFinal.objects
+        .filter(id__endswith=f'/{year}')
+        .order_by('-id')
+        .first()
+    )
+    final_number = int(latest_final.id.split('/')[0]) if latest_final else 0
 
-    return formatted_number
+    # Ambil yang terbesar dari dua tabel
+    db_number = max(dp_number, final_number)
+
+    # Logika penyesuaian counter
+    if file_number == db_number:
+        # Sinkron, generate baru
+        new_number = file_number + 1
+        with open(counter_file_path, 'w') as file:
+            file.write(str(new_number))
+        return f"{new_number:03}"
+    elif file_number > db_number:
+        # File lebih tinggi dari DB, gunakan saja
+        return f"{file_number:03}"
+    else:
+        # File lebih rendah dari DB, update file agar sinkron
+        new_number = db_number + 1
+        with open(counter_file_path, 'w') as file:
+            file.write(str(new_number))
+        return f"{new_number:03}"
 
 
 # Helper function to get the next kwitansi number
@@ -162,15 +238,43 @@ def get_next_kwitansi_number():
     with open(counter_file_path, 'r') as file:
         last_number = int(file.read())
 
-    # Increment and format the number with leading zeros
-    new_number = last_number + 1
-    formatted_number = f"{new_number:03}"
+    # Ambil nomor terakhir dari KwitansiDP
+    latest_dp = (
+        KwitansiDP.objects
+        .filter(id__endswith=f'/{year}')
+        .order_by('-id')
+        .first()
+    )
+    dp_number = int(latest_dp.id.split('/')[0]) if latest_dp else 0
 
-    # Save the updated number back to the file
-    with open(counter_file_path, 'w') as file:
-        file.write(str(new_number))
+    # Ambil nomor terakhir dari KwitansiFinal
+    latest_final = (
+        KwitansiFinal.objects
+        .filter(id__endswith=f'/{year}')
+        .order_by('-id')
+        .first()
+    )
+    final_number = int(latest_final.id.split('/')[0]) if latest_final else 0
 
-    return formatted_number
+    # Ambil nomor terbesar dari database
+    db_number = max(dp_number, final_number)
+
+    # Sinkronisasi counter
+    if last_number == db_number:
+        # Sinkron, generate baru
+        new_number = last_number + 1
+        with open(counter_file_path, 'w') as file:
+            file.write(str(new_number))
+        return f"{new_number:03}"
+    elif last_number > db_number:
+        # File lebih tinggi, pakai itu
+        return f"{last_number:03}"
+    else:
+        # File lebih rendah dari DB, sinkronkan
+        new_number = db_number + 1
+        with open(counter_file_path, 'w') as file:
+            file.write(str(new_number))
+        return f"{new_number:03}"
 
 
 
@@ -190,6 +294,13 @@ def generate_invoice_dp(request):
         'nominal_tertulis' : data.get('nominal_tertulis', ''),
         'additional_info': data.get('additional_info', 'No additional info'),
         'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
+        'beneficiary_bank_name': data.get('beneficiary_bank_name', ''),
+        'beneficiary_account_name': data.get('beneficiary_account_name', ''),
+        'beneficiary_account_number': data.get('beneficiary_account_number', ''),
+        'account_currency': data.get('account_currency', ''),
+        'beneficiary_bank_address': data.get('beneficiary_bank_address', ''),
+        'beneficiary_swift_code': data.get('beneficiary_swift_code', ''),
+        'tax_id': data.get('tax_id', ''),
     }
 
 
@@ -202,8 +313,11 @@ def generate_invoice_dp(request):
     invoice_id = f"{invoice_number}/SURV/LSI/{month_roman}/{year}"
     doc = "invoiceDP"
 
+    if Decimal(user_data['amount']) > Decimal('999999999999.99'):
+        return HttpResponse({"error": "Amount terlalu besar untuk disimpan."}, status=400)
+
     # Save the data to the invoice_dp table
-    if not InvoiceDP.objects.filter(id=invoice_id).exists(): 
+    elif not InvoiceDP.objects.filter(id=invoice_id).exists(): 
         InvoiceDP.objects.create(
             id=invoice_id,
             client_name=user_data['client_name'],
@@ -215,7 +329,14 @@ def generate_invoice_dp(request):
             paid_percentage=user_data['paid_percentage'],
             additional_info=user_data['additional_info'],
             date=user_data['date'],
-            doc_type=doc
+            doc_type=doc,
+            beneficiary_bank_name=user_data['beneficiary_bank_name'],
+            beneficiary_account_name=user_data['beneficiary_account_name'],
+            beneficiary_account_number=user_data['beneficiary_account_number'],
+            account_currency=user_data['account_currency'],
+            beneficiary_bank_address=user_data['beneficiary_bank_address'],
+            beneficiary_swift_code=user_data['beneficiary_swift_code'],
+            tax_id=user_data['tax_id'],
         )
     else:
         print(f"Record with id {invoice_id} already exists. Skipping creation.")
@@ -246,7 +367,15 @@ def generate_invoice_dp(request):
     sheet['C35'].font = Font(name="Times New Roman", bold=True, underline="single")
     sheet['F27'] = paid_percentage_message      
     sheet['B28'] = user_data['additional_info']       
-    sheet['G14'] = date_message                 
+    sheet['G14'] = date_message    
+    sheet['C42'] = f": {user_data['beneficiary_bank_name']}"
+    sheet['C39'] = f": {user_data['beneficiary_account_name']}"
+    sheet['C40'] = f": {user_data['beneficiary_account_number']}"
+    sheet['C40'].font = Font(name="Times New Roman", bold=True)
+    sheet['C41'] = f": {user_data['account_currency']}"
+    sheet['C43'] = f": {user_data['beneficiary_bank_address']}"
+    sheet['C44'] = f": {user_data['beneficiary_swift_code']}"
+    sheet['C45'] = f": {user_data['tax_id']}"          
 
     # Path to the image you want to add
     header_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/header.png')  
@@ -258,15 +387,14 @@ def generate_invoice_dp(request):
     invoice_img = Image(invoice_image_path)
     invoice_img.width, invoice_img.height = 275.9, 75.59
 
-    # Path to the image you want to add
-    ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
-    ttd_img = Image(ttd_image_path)
-    ttd_img.width, ttd_img.height = 314.83, 173.48
+    # # Path to the image you want to add
+    # ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
+    # ttd_img = Image(ttd_image_path)
+    # ttd_img.width, ttd_img.height = 314.83, 173.48
 
     # Add image to the specified cell location
     sheet.add_image(header_img, 'A1') 
     sheet.add_image(invoice_img, 'G8')
-    sheet.add_image(ttd_img, 'G37')
 
     # Generate a filename
     filename = f"{user_data['survey_name']}_invoiceDP_{invoice_code}.xlsx"
@@ -463,6 +591,13 @@ def generate_invoice_final(request):
         'nominal_tertulis' : data.get('nominal_tertulis', ''),
         'additional_info': data.get('additional_info', 'No additional info'),
         'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
+        'beneficiary_bank_name': data.get('beneficiary_bank_name', ''),
+        'beneficiary_account_name': data.get('beneficiary_account_name', ''),
+        'beneficiary_account_number': data.get('beneficiary_account_number', ''),
+        'account_currency': data.get('account_currency', ''),
+        'beneficiary_bank_address': data.get('beneficiary_bank_address', ''),
+        'beneficiary_swift_code': data.get('beneficiary_swift_code', ''),
+        'tax_id': data.get('tax_id', ''),
     }
 
 
@@ -475,20 +610,33 @@ def generate_invoice_final(request):
     invoice_id = f"{invoice_number}/SURV/LSI/{month_roman}/{year}"
     doc = "invoiceFinal"
 
-    # Save the data to the invoice_dp table
-    InvoiceFinal.objects.create(
-        id=invoice_id,
-        client_name=user_data['client_name'],
-        survey_name=user_data['survey_name'],
-        respondent_count=user_data['respondent_count'],
-        address=user_data['address'],
-        amount=user_data['amount'],
-        nominal_tertulis=user_data['nominal_tertulis'],
-        paid_percentage=user_data['paid_percentage'],
-        additional_info=user_data['additional_info'],
-        date=user_data['date'],
-        doc_type=doc
-    )
+    if Decimal(user_data['amount']) > Decimal('999999999999.99'):
+        return HttpResponse({"error": "Amount terlalu besar untuk disimpan."}, status=400)
+
+    # Save the data to the invoice_final table
+    elif not InvoiceFinal.objects.filter(id=invoice_id).exists(): 
+        InvoiceFinal.objects.create(
+            id=invoice_id,
+            client_name=user_data['client_name'],
+            survey_name=user_data['survey_name'],
+            respondent_count=user_data['respondent_count'],
+            address=user_data['address'],
+            amount=user_data['amount'],
+            nominal_tertulis=user_data['nominal_tertulis'],
+            paid_percentage=user_data['paid_percentage'],
+            additional_info=user_data['additional_info'],
+            date=user_data['date'],
+            doc_type=doc,
+            beneficiary_bank_name=user_data['beneficiary_bank_name'],
+            beneficiary_account_name=user_data['beneficiary_account_name'],
+            beneficiary_account_number=user_data['beneficiary_account_number'],
+            account_currency=user_data['account_currency'],
+            beneficiary_bank_address=user_data['beneficiary_bank_address'],
+            beneficiary_swift_code=user_data['beneficiary_swift_code'],
+            tax_id=user_data['tax_id'],
+        )
+    else:
+        print(f"Record with id {invoice_id} already exists. Skipping creation.")
 
     # Load the Excel template
     template_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateInvoiceFinal.xlsx')
@@ -516,7 +664,15 @@ def generate_invoice_final(request):
     sheet['C35'].font = Font(name="Times New Roman", bold=True, underline="single")
     sheet['F27'] = paid_percentage_message      
     sheet['B28'] = user_data['additional_info']       
-    sheet['G14'] = date_message                 
+    sheet['G14'] = date_message   
+    sheet['C42'] = f": {user_data['beneficiary_bank_name']}"
+    sheet['C39'] = f": {user_data['beneficiary_account_name']}"
+    sheet['C40'] = f": {user_data['beneficiary_account_number']}"
+    sheet['C40'].font = Font(name="Times New Roman", bold=True)
+    sheet['C41'] = f": {user_data['account_currency']}"
+    sheet['C43'] = f": {user_data['beneficiary_bank_address']}"
+    sheet['C44'] = f": {user_data['beneficiary_swift_code']}"
+    sheet['C45'] = f": {user_data['tax_id']}"               
 
     # Path to the image you want to add
     header_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/header.png')  
@@ -528,15 +684,14 @@ def generate_invoice_final(request):
     invoice_img = Image(invoice_image_path)
     invoice_img.width, invoice_img.height = 275.9, 75.59
 
-    # Path to the image you want to add
-    ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
-    ttd_img = Image(ttd_image_path)
-    ttd_img.width, ttd_img.height = 314.83, 173.48
+    # # Path to the image you want to add
+    # ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
+    # ttd_img = Image(ttd_image_path)
+    # ttd_img.width, ttd_img.height = 314.83, 173.48
 
     # Add image to the specified cell location
     sheet.add_image(header_img, 'A1') 
     sheet.add_image(invoice_img, 'G8')
-    sheet.add_image(ttd_img, 'G37')
 
     # Generate a filename
     filename = f"{user_data['survey_name']}_invoiceFinal_{invoice_code}.xlsx"
@@ -579,19 +734,23 @@ def generate_kwitansi_dp(request):
 
     formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
 
+    if Decimal(user_data['amount']) > Decimal('999999999999.99'):
+        return HttpResponse({"error": "Amount terlalu besar untuk disimpan."}, status=400)
+
     # Save the data to the kwitansi_dp table
-    KwitansiDP.objects.create(
-        id=kwitansi_id,
-        # pembayar=user_data['pembayar'],
-        # tujuan_pembayaran=user_data['tujuan_pembayaran'],
-        client_name=user_data['pembayar'],
-        survey_name=user_data['tujuan_pembayaran'],
-        nominal_tertulis=user_data['nominal_tertulis'],
-        additional_info=user_data['additional_info'],
-        amount=user_data['amount'],
-        date=user_data['date'],
-        doc_type=doc
-    )
+    elif not KwitansiDP.objects.filter(id=kwitansi_id).exists(): 
+        KwitansiDP.objects.create(
+            id=kwitansi_id,
+            client_name=user_data['pembayar'],
+            survey_name=user_data['tujuan_pembayaran'],
+            nominal_tertulis=user_data['nominal_tertulis'],
+            additional_info=user_data['additional_info'],
+            amount=user_data['amount'],
+            date=user_data['date'],
+            doc_type=doc
+        )
+    else:
+        print(f"Record with id {kwitansi_id} already exists. Skipping creation.")
 
     # load excel template for kwitansi dp
     template_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateKwitansi.xlsx')
@@ -794,19 +953,23 @@ def generate_kwitansi_final(request):
 
     formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
 
-    # Save the data to the kwitansi_dp table
-    KwitansiDP.objects.create(
-        id=kwitansi_id,
-        # pembayar=user_data['pembayar'],
-        # tujuan_pembayaran=user_data['tujuan_pembayaran'],
-        client_name=user_data['pembayar'],
-        survey_name=user_data['tujuan_pembayaran'],
-        nominal_tertulis=user_data['nominal_tertulis'],
-        additional_info=user_data['additional_info'],
-        amount=user_data['amount'],
-        date=user_data['date'],
-        doc_type=doc
-    )
+    if Decimal(user_data['amount']) > Decimal('999999999999.99'):
+        return HttpResponse({"error": "Amount terlalu besar untuk disimpan."}, status=400)
+
+    # Save the data to the kwitansi_final table
+    elif not KwitansiFinal.objects.filter(id=kwitansi_id).exists(): 
+        KwitansiFinal.objects.create(
+            id=kwitansi_id,
+            client_name=user_data['pembayar'],
+            survey_name=user_data['tujuan_pembayaran'],
+            nominal_tertulis=user_data['nominal_tertulis'],
+            additional_info=user_data['additional_info'],
+            amount=user_data['amount'],
+            date=user_data['date'],
+            doc_type=doc
+        )
+    else:
+        print(f"Record with id {kwitansi_id} already exists. Skipping creation.")
 
     # load excel template for kwitansi dp
     template_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateKwitansi.xlsx')
