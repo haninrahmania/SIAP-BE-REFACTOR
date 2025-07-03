@@ -30,7 +30,7 @@ class SurveiGet(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir'
         )
 
     def get_nama_klien(self, obj):
@@ -39,7 +39,9 @@ class SurveiGet(serializers.ModelSerializer):
         return "-"
 
     def get_wilayah_survei_names(self, obj):
-        if obj.wilayah_survei:
+        if isinstance(obj.wilayah_survei, list):
+            return [w.get("name", "") for w in obj.wilayah_survei if isinstance(w, dict)]
+        elif isinstance(obj.wilayah_survei, str):
             return [item.strip() for item in obj.wilayah_survei.split(",")]
         return []
 
@@ -81,7 +83,7 @@ class SurveiPost(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir'
         )
 
     def get_nama_klien(self, obj):
@@ -90,7 +92,9 @@ class SurveiPost(serializers.ModelSerializer):
         return None
 
     def get_wilayah_survei_names(self, obj):
-        if obj.wilayah_survei:
+        if isinstance(obj.wilayah_survei, list):
+            return [w.get("name", "") for w in obj.wilayah_survei if isinstance(w, dict)]
+        elif isinstance(obj.wilayah_survei, str):
             return [item.strip() for item in obj.wilayah_survei.split(",")]
         return []
 
@@ -127,14 +131,18 @@ class SurveiPost(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        wilayah_data = validated_data.pop('wilayah_survei', [])
-        validated_data['wilayah_survei'] = ", ".join(w['name'] for w in wilayah_data)
-        return super().create(validated_data)
+        souvenir = validated_data.get('souvenir')
+        jumlah_souvenir = validated_data.get('jumlah_souvenir', 0)
+
+        instance = super().create(validated_data)
+
+        if souvenir and jumlah_souvenir:
+            souvenir.jumlah_stok -= jumlah_souvenir
+            souvenir.save()
+
+        return instance
 
     def update(self, instance, validated_data):
-        wilayah_data = validated_data.pop('wilayah_survei', None)
-        if wilayah_data is not None:
-            validated_data['wilayah_survei'] = ", ".join(w['name'] for w in wilayah_data)
         return super().update(instance, validated_data)
 
 
