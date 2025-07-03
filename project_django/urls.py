@@ -46,3 +46,6 @@ urlpatterns = [
     path('api/dashboard/', include('dashboard.urls')),
     path('api/daftarDokumen/', include('daftarDokumen.urls')), # Pastikan tidak tumpang tindih dengan klien/urls
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

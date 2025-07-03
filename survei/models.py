@@ -11,7 +11,7 @@ class Survei(models.Model):
     RUANG_LINGKUP = {
         ("Nasional", "Nasional"),
         ("Provinsi", "Provinsi"),
-        ("Kota", "Kota"),
+        ("Kabupaten/Kota", "Kabupaten/Kota"),
         ("Dapil", "Dapil"),
     }
     SURVEI_CHOICE = {
