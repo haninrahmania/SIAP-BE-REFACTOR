@@ -37,8 +37,7 @@ def validate_role_fields(user_role, data):
             'penyerahan_laporan'
         },
         'Pengendali Mutu': {
-            'terima_info_survei', 'lakukan_survei', 
-            'pantau_responden', 'pantau_data_cleaning'
+            'pra_survei', 'turun_lapangan', 'pantau_data_cleaning'
         },
         'Logistik': {
             'terima_request_souvenir', 'ambil_souvenir'
@@ -58,6 +57,8 @@ def validate_role_fields(user_role, data):
 
 def safe_update_tracker(tracker, user_role, update_data):
     """Safely update tracker with validation and error handling."""
+    current_state = {} 
+
     try:
         # First validate role permissions
         validate_role_fields(user_role, update_data)
