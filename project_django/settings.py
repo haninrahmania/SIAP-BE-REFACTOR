@@ -67,9 +67,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-
 CORS_ALLOW_CREDENTIALS = True
 
 # CORS_ALLOWED_ORIGINS = [
@@ -106,7 +104,7 @@ WSGI_APPLICATION = 'project_django.wsgi.application'
 
 # PRODUCTION = "postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway"
 
-PRODUCTION = os.getenv('DATABASE_PUBLIC_URL') is not None
+PRODUCTION = False
 
 
 if PRODUCTION:
