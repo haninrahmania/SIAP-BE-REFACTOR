@@ -18,7 +18,7 @@ class TrackerSurveiSerializer(serializers.ModelSerializer):
             # Logistik
             'terima_request_souvenir', 'ambil_souvenir',
             # Pengendali Mutu
-            'terima_info_survei', 'lakukan_survei', 'pantau_responden', 'pantau_data_cleaning',
+            'pra_survei', 'turun_lapangan', 'pantau_responden', 'pantau_data_cleaning',
             # Administrasi Akhir
             'buat_invoice_final', 'pembuatan_laporan', 'pembayaran_lunas', 
             'pembuatan_kwitansi_final', 'penyerahan_laporan'
@@ -40,7 +40,7 @@ class TrackerGet(serializers.ModelSerializer):
             # Logistik
             'terima_request_souvenir', 'ambil_souvenir',
             # Pengendali Mutu
-            'terima_info_survei', 'lakukan_survei', 'pantau_responden', 'pantau_data_cleaning',
+            'pra_survei', 'turun_lapangan', 'pantau_responden', 'pantau_data_cleaning',
             # Administrasi Akhir
             'buat_invoice_final', 'pembuatan_laporan', 'pembayaran_lunas', 
             'pembuatan_kwitansi_final', 'penyerahan_laporan'
