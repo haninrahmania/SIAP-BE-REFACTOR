@@ -47,7 +47,7 @@ class TrackerSurvei(models.Model):
     # Pengendali Mutu
     pra_survei = models.CharField(max_length=30, choices=STATUS_CHOICES_PRA_SURVEI, default='NOT_STARTED')
     turun_lapangan = models.CharField(max_length=30, choices=STATUS_CHOICES_TURUN_LAPANGAN, default='NOT_STARTED')
-    pantau_responden = models.CharField(max_length=255, blank=True, null=True)  
+    pantau_responden = models.CharField(max_length=30, blank=True, null=True)  
     pantau_data_cleaning = models.CharField(max_length=30, choices=STATUS_CHOICES_PANTAU_CLEANING, default='NOT_STARTED')
 
     # Administrasi Akhir
@@ -188,10 +188,7 @@ class TrackerSurvei(models.Model):
         # self.update_last_status()
         super().save(*args, **kwargs)
 
-
     @receiver(post_save, sender=Survei)
     def create_tracker(sender, instance, created, **kwargs):
         if created:
             TrackerSurvei.objects.create(survei=instance)
-
-
