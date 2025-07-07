@@ -162,8 +162,8 @@ def get_sidebar_role(request):
             'menu': ['profil', 'daftar-akun', 'buat-akun']
         },
         'Pengendali Mutu': {
-            'homepage': '/tracker-survei',
-            'menu': ['profil', 'tracker-survei']
+            'homepage': '/dashboard',
+            'menu': ['dashboard','profil', 'tracker-survei']
         },
         'Logistik': {
             'homepage': '/dashboard',
