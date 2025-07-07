@@ -160,8 +160,8 @@ def get_sidebar_role(request):
             'menu': ['profil', 'daftar-akun', 'buat-akun']
         },
         'Pengendali Mutu': {
-            'homepage': '/dashboard',
-            'menu': ['profil', 'tracker-survei', 'dashboard']
+            'homepage': '/tracker-survei',
+            'menu': ['profil', 'tracker-survei']
         },
         'Logistik': {
             'homepage': '/dashboard',
@@ -249,8 +249,6 @@ def check_role_proposal(request):
     if user.role == 'Administrasi':  
         return JsonResponse({'role': user.role})
     elif user.role == 'Eksekutif':
-        return JsonResponse({'role': user.role})
-    elif user.role == 'Pengendali Mutu':
         return JsonResponse({'role': user.role})
     return JsonResponse({'error': 'Unauthorized'}, status=403)
 

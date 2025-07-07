@@ -106,6 +106,23 @@ WSGI_APPLICATION = 'project_django.wsgi.application'
 
 PRODUCTION = False
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': "railway",  # Nama default jika tidak ada DATABASE_URL
+#         'USER': "postgres",  # Username default
+#         'PASSWORD': "STunTjGwaafzzvGqJIdgShEUBuOvdqCQ",  # Password default (ganti dengan password aktual jika diperlukan)
+#         'HOST': "postgres.railway.internal",  # Default host
+#         'PORT': '5432',  # Default port
+#     }
+# }
+
+# if PRODUCTION:
+#     DATABASES['default'] = dj_database_url.config(
+#         default="postgresql://postgres:STunTjGwaafzzvGqJIdgShEUBuOvdqCQ@junction.proxy.rlwy.net:15737/railway",
+#         conn_max_age=600,
+#         ssl_require=True
+#     )
 
 if PRODUCTION:
     DATABASES = {
