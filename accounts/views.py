@@ -252,6 +252,8 @@ def check_role_proposal(request):
         return JsonResponse({'role': user.role})
     elif user.role == 'Eksekutif':
         return JsonResponse({'role': user.role})
+    elif user.role == 'Pengendali Mutu':
+        return JsonResponse({'role': user.role})
     return JsonResponse({'error': 'Unauthorized'}, status=403)
 
 @api_view(['GET'])
