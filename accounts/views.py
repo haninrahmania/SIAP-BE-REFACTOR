@@ -163,7 +163,7 @@ def get_sidebar_role(request):
         },
         'Pengendali Mutu': {
             'homepage': '/dashboard',
-            'menu': ['profil', 'tracker-survei', 'dashboard']
+            'menu': ['dashboard','profil', 'tracker-survei']
         },
         'Logistik': {
             'homepage': '/dashboard',
