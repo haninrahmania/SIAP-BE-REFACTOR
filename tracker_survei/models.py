@@ -207,7 +207,9 @@ class TrackerSurvei(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    # @receiver(post_save, sender=Survei)
-    # def create_tracker(sender, instance, created, **kwargs):
-    #     if created:
-    #         TrackerSurvei.objects.create(survei=instance)
+
+    @receiver(post_save, sender=Survei)
+    def create_tracker(sender, instance, created, **kwargs):
+        if created:
+            TrackerSurvei.objects.create(survei=instance)
+
