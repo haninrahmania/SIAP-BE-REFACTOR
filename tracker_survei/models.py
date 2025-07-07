@@ -188,10 +188,7 @@ class TrackerSurvei(models.Model):
         # self.update_last_status()
         super().save(*args, **kwargs)
 
-
     @receiver(post_save, sender=Survei)
     def create_tracker(sender, instance, created, **kwargs):
         if created:
             TrackerSurvei.objects.create(survei=instance)
-
-

@@ -4,7 +4,7 @@ from django.contrib.auth import login as auth_login
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework import status
@@ -16,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.authtoken.models import Token
 from .decorators import admin_required, administrator_required
 from django.contrib.auth import logout
+from rest_framework.parsers import JSONParser
 
 
 # from .models import Profile
@@ -31,6 +32,7 @@ def get_data(request):
     return Response(data)
 
 @api_view(['POST'])
+@parser_classes([JSONParser])
 def login_view(request):
     username = request.data.get('username')
     password = request.data.get('password')
