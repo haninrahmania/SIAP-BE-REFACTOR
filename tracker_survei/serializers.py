@@ -6,10 +6,15 @@ class TrackerSurveiSerializer(serializers.ModelSerializer):
     nama_survei = serializers.CharField(source='survei.nama_survei', read_only=True)
     nama_klien = serializers.CharField(source='survei.nama_klien', read_only=True)
     status = serializers.SerializerMethodField()
+    latest_jumlah_responden = serializers.SerializerMethodField()
+
+    def get_latest_jumlah_responden(self, obj):
+        last = obj.jumlah_responden.order_by('-updated_at').first()
+        return last.jumlah if last else None
     
     class Meta:
         model = TrackerSurvei
-        fields = ['id', 'nama_survei', 'nama_klien', 'status', 'last_status']
+        fields = ['id', 'nama_survei', 'nama_klien', 'status', 'last_status', 'latest_jumlah_responden']
     
     def get_status(self, obj):
         status_fields = [
@@ -31,6 +36,10 @@ class TrackerGet(serializers.ModelSerializer):
     latest_jumlah_responden = serializers.SerializerMethodField()
 
     # latest_jumlah_responden = serializers.SerializerMethodField()
+    # def get_latest_jumlah_responden(self, obj):
+    #     last = obj.jumlah_responden.order_by('-updated_at').first()
+    #     return last.jumlah if last else None
+
     def get_latest_jumlah_responden(self, obj):
         last = obj.jumlahresponden_set.order_by('-updated_at').first()
         return last.jumlah if last else None
