@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import TrackerSurvei
+from .models import TrackerSurvei, JumlahResponden
 from survei.serializers import SurveiGet
 
 class TrackerSurveiSerializer(serializers.ModelSerializer):
@@ -28,10 +28,17 @@ class TrackerSurveiSerializer(serializers.ModelSerializer):
 class TrackerGet(serializers.ModelSerializer):
     survei = SurveiGet()
     status = serializers.SerializerMethodField()
+    latest_jumlah_responden = serializers.SerializerMethodField()
+
+    # latest_jumlah_responden = serializers.SerializerMethodField()
+    def get_latest_jumlah_responden(self, obj):
+        last = obj.jumlahresponden_set.order_by('-updated_at').first()
+        return last.jumlah if last else None
+
     
     class Meta:
         model = TrackerSurvei
-        fields = ("id", "survei", "status", "last_status")
+        fields = ("id", "survei", "status", "last_status", "latest_jumlah_responden")
     
     def get_status(self, obj):
         status_fields = [
@@ -46,3 +53,8 @@ class TrackerGet(serializers.ModelSerializer):
             'pembuatan_kwitansi_final', 'penyerahan_laporan'
         ]
         return [{field: getattr(obj, field)} for field in status_fields]
+    
+class JumlahRespondenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JumlahResponden
+        fields = ['id', 'jumlah', 'updated_at']
