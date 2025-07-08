@@ -111,11 +111,13 @@ def handle_tracker_update(request, survei_id, allowed_roles):
 
         # Get tracker instance
         tracker = get_object_or_404(TrackerSurvei, survei_id=survei_id)
-        if 'jumlah_responden' in request.data:
-            request.data.pop('jumlah_responden')
+        # jumlah_responden = request.data.get("jumlah_responden")
 
-        # Jika ada field jumlah_responden di request, simpan ke tabel JumlahResponden
-        jumlah_responden = request.data.get("jumlah_responden")
+        # Copy request data
+        request_data = request.data.copy()
+
+        # Tangani jumlah_responden khusus
+        jumlah_responden = request_data.pop("jumlah_responden", None)
         if jumlah_responden is not None:
             try:
                 jumlah_responden = int(jumlah_responden)
@@ -131,16 +133,16 @@ def handle_tracker_update(request, survei_id, allowed_roles):
                     {"error": "jumlah_responden harus berupa angka"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
-        # Update tracker
-        error = safe_update_tracker(tracker, request.user.role, request.data)
+
+        # Update tracker (tanpa jumlah_responden)
+        error = safe_update_tracker(tracker, request.user.role, request_data)
         
         if error:
             return Response(error, status=status.HTTP_400_BAD_REQUEST)
             
         # Return updated data
         serializer = TrackerSurveiSerializer(tracker)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
         logger.error(f"Error updating tracker status: {str(e)}")
