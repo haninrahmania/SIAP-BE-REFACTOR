@@ -183,7 +183,7 @@ def get_list_survei(request):
         # Apply search if query exists
         if search_query:
             surveys = surveys.filter(
-                Q(nama_survei__icontains=search_query) |
+                Q(judul_survei__icontains=search_query) |
                 Q(klien__nama_perusahaan__icontains=search_query) 
             )
         
