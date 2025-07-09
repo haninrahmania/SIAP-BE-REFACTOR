@@ -65,61 +65,100 @@ class TrackerSurvei(models.Model):
     last_status = models.CharField(max_length=100, null=True, blank=True)
 
     def update_last_status(self):
-        if self.penyerahan_laporan == 'FINISHED':
-            self.last_status = 'Done'
+        # if self.penyerahan_laporan == 'FINISHED':
+        #     self.last_status = 'Done'
+        #     return
+
+        # 1. Jika turun_lapangan selesai, tapi pantau_responden belum diisi
+        if self.turun_lapangan in ['WORKSHOP', 'INPUT_DATA'] and not self.pantau_responden:
+            self.last_status = "Memantau Responden: Not Started"
             return
 
-        stages = [
-            # Administrasi Awal
-            [
-                ('buat_kontrak', 'Buat Kontrak'),
-                ('buat_invoice_dp', 'Buat Invoice DP'),
-                ('pembayaran_dp', 'Pembayaran DP'),
-                ('pembuatan_kwitansi_dp', 'Pembuatan Kwitansi DP')
-            ],
-            # Logistik
-            [
-                ('terima_request_souvenir', 'Terima Request Souvenir'),
-                ('ambil_souvenir', 'Ambil Souvenir')
-            ],
-            # Pengendali Mutu
-            [
-                ('pra_survei', 'Pra-Survei'),
-                ('turun_lapangan', 'Turun Lapangan'),
-                ('pantau_data_cleaning', 'Memantau Data Cleaning')
-            ],
-            # Administrasi Akhir
-            [
-                ('pembuatan_laporan', 'Pembuatan Laporan'),
-                ('buat_invoice_final', 'Buat Invoice Final'),
-                ('pembayaran_lunas', 'Pembayaran Lunas'),
-                ('pembuatan_kwitansi_final', 'Pembuatan Kwitansi Final'),
-                ('penyerahan_laporan', 'Penyerahan Laporan')
-            ]
+        # 2. Jika pantau_responden sudah True, dan pantau_data_cleaning belum dimulai
+        if self.pantau_responden and self.pantau_data_cleaning == 'NOT_STARTED':
+            self.last_status = "Memantau Responden: In Progress"
+            return
+
+        # 3. Jika sedang cleaning
+        if self.pantau_data_cleaning == 'CLEANING':
+            self.last_status = "Memantau Data Cleaning: Cleaning in Progress"
+            return
+
+        # Mapping custom selesai
+        custom_done_values = {
+            'pra_survei': ['PRE_TEST', 'SKIP_PRE_TEST'],
+            'turun_lapangan': ['WORKSHOP', 'INPUT_DATA'],
+            'pantau_data_cleaning': ['CLEANED']
+        }
+
+        status_mapping = {
+            'pra_survei': {
+                'PRE_TEST': 'Pra-Survei: Pre-Test',
+                'SKIP_PRE_TEST': 'Pra-Survei: Tidak Perlu Pre-Test'
+            },
+            'turun_lapangan': {
+                'WORKSHOP': 'Turun Lapangan: Workshop',
+                'INPUT_DATA': 'Turun Lapangan: Input Data'
+            }
+        }
+
+        ordered_fields = [
+            ('buat_kontrak', 'Buat Kontrak'),
+            ('buat_invoice_dp', 'Buat Invoice DP'),
+            ('pembayaran_dp', 'Pembayaran DP'),
+            ('pembuatan_kwitansi_dp', 'Pembuatan Kwitansi DP'),
+            ('terima_request_souvenir', 'Terima Request Souvenir'),
+            ('ambil_souvenir', 'Ambil Souvenir'),
+            ('pra_survei', 'Pra-Survei'),
+            ('turun_lapangan', 'Turun Lapangan'),
+            ('pantau_data_cleaning', 'Memantau Data Cleaning'),
+            ('pembuatan_laporan', 'Pembuatan Laporan'),
+            ('buat_invoice_final', 'Buat Invoice Final'),
+            ('pembayaran_lunas', 'Pembayaran Lunas'),
+            ('pembuatan_kwitansi_final', 'Pembuatan Kwitansi Final'),
+            ('penyerahan_laporan', 'Penyerahan Laporan'),
         ]
 
-        for stage in stages:
-            for i, (field, description) in enumerate(stage):
-                current_status = getattr(self, field)
+        DONE_VALUES = {'FINISHED', 'PRE_TEST', 'SKIP_PRE_TEST', 'WORKSHOP', 'INPUT_DATA', 'CLEANED'}
 
-                if field == 'pantau_responden':
-                    if self.pantau_responden:
-                         self.last_status = "Memantau Responden: In Progress"
-                         # This is not a blocking step, so we don't return
-                    continue
+        for i, (field, label) in enumerate(ordered_fields):
+            value = getattr(self, field)
 
-                if current_status == 'NOT_STARTED':
-                    if i == 0 or getattr(self, stage[i-1][0]) == 'FINISHED':
-                        self.last_status = f"{description}: Not Started"
-                        return
-                elif current_status == 'IN_PROGRESS':
-                    self.last_status = f"{description}: In Progress"
+            # Tangani custom status selesai (tidak jadi last_status)
+            if field in custom_done_values and value in custom_done_values[field]:
+                continue
+
+            if value == 'NOT_STARTED':
+                if i == 0 or getattr(self, ordered_fields[i - 1][0]) in DONE_VALUES:
+                    self.last_status = f"{label}: Not Started"
                     return
-                elif current_status == 'DELAYED':
-                    self.last_status = f"{description}: Delayed"
-                    return
+            elif value == 'IN_PROGRESS':
+                self.last_status = f"{label}: In Progress"
+                return
+            elif value == 'DELAYED':
+                self.last_status = f"{label}: Delayed"
+                return
 
-        self.last_status = 'Buat Kontrak: Not Started'
+        # Jika semua status == NOT_STARTED dan pantau_responden False
+        if all(
+            getattr(self, field) == 'NOT_STARTED'
+            for field, _ in ordered_fields
+        ) and not self.pantau_responden:
+            self.last_status = "Belum Dimulai"
+            return
+
+        # Jika semua selesai dan ada delay terhadap tanggal_selesai survei
+        if all(
+            getattr(self, field) in DONE_VALUES for field, _ in ordered_fields
+        ) and self.pantau_responden:
+            tanggal_selesai = self.survei.tanggal_selesai
+            if tanggal_selesai and self.updated_at > tanggal_selesai:
+                self.last_status = "Done with Delay"
+            else:
+                self.last_status = "Done"
+            return
+
+        self.last_status = "Buat Kontrak: Not Started"  # Fallback
 
     class Meta:
         db_table = 'tracker_survei'
@@ -195,7 +234,7 @@ class TrackerSurvei(models.Model):
 
     def save(self, *args, **kwargs):
         self.full_clean()
-        # self.update_last_status()
+        self.update_last_status()  # tambahkan ini agar last_status selalu update
         super().save(*args, **kwargs)
 
     @receiver(post_save, sender=Survei)
