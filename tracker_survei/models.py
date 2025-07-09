@@ -48,9 +48,10 @@ class TrackerSurvei(models.Model):
     # Pengendali Mutu
     pra_survei = models.CharField(max_length=30, choices=STATUS_CHOICES_PRA_SURVEI, default='NOT_STARTED')
     turun_lapangan = models.CharField(max_length=30, choices=STATUS_CHOICES_TURUN_LAPANGAN, default='NOT_STARTED')
-    # pantau_responden = models.CharField(max_length=255, blank=True, null=True)  
     pantau_responden = models.BooleanField(default=False)
     pantau_data_cleaning = models.CharField(max_length=30, choices=STATUS_CHOICES_PANTAU_CLEANING, default='NOT_STARTED')
+    cleaning_personil = models.CharField(max_length=255, null=True, blank=True)
+
 
     # Administrasi Akhir
     buat_invoice_final = models.CharField(max_length=20, choices=STATUS_CHOICES_DEFAULT, default='NOT_STARTED')
@@ -134,9 +135,12 @@ class TrackerSurvei(models.Model):
         ])
 
     def is_pengendali_mutu_finished(self):
-        return all(getattr(self, field) == 'FINISHED' for field in [
-            'pra_survei', 'turun_lapangan', 'pantau_data_cleaning'
-        ])
+        return (
+            self.pra_survei in ['FINISHED', 'PRE_TEST', 'SKIP_PRE_TEST'] and
+            self.turun_lapangan in ['WORKSHOP', 'INPUT_DATA'] and
+            self.pantau_data_cleaning == 'CLEANED' and
+            self.pantau_responden
+        )
 
     def is_administrasi_akhir_finished(self):
         return all(getattr(self, field) == 'FINISHED' for field in [
@@ -214,4 +218,3 @@ class JumlahResponden(models.Model):
 
     def __str__(self):
         return f"Responden: {self.jumlah} (Tracker ID {self.tracker_id})"
-
