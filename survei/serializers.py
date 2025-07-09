@@ -1,8 +1,9 @@
 import datetime
 from rest_framework import serializers
 from .models import Survei
-from klien.models import DataKlien
 from souvenir.models import Souvenir
+from tracker_survei.models import JumlahResponden
+from klien.models import DataKlien
 
 class DataKlienSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
@@ -21,6 +22,7 @@ class SurveiGet(serializers.ModelSerializer):
     ppk = serializers.SerializerMethodField()
     peneliti = serializers.SerializerMethodField()
     souvenir = serializers.SerializerMethodField()
+    jumlah_responden_harian = serializers.SerializerMethodField()
 
     class Meta:
         model = Survei
@@ -30,7 +32,7 @@ class SurveiGet(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian'
         )
 
     def get_nama_klien(self, obj):
@@ -61,6 +63,12 @@ class SurveiGet(serializers.ModelSerializer):
             }
         return None
 
+    def get_jumlah_responden_harian(self, obj):
+        tracker = getattr(obj, "tracker", None)
+        if not tracker:
+            return []
+
+        return JumlahRespondenSerializer(tracker.jumlah_responden.all(), many=True).data
 
 class SurveiPost(serializers.ModelSerializer):
     klien_id = serializers.PrimaryKeyRelatedField(
@@ -171,3 +179,8 @@ class SurveiSouvenirCountSerializer(serializers.Serializer):
     count = serializers.IntegerField()
     jumlah_stok = serializers.IntegerField(required=False)
     jumlah_minimum = serializers.IntegerField(required=False)
+
+class JumlahRespondenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JumlahResponden
+        fields = ['jumlah', 'updated_at']
