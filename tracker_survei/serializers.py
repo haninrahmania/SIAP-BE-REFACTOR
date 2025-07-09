@@ -38,9 +38,15 @@ class TrackerGet(serializers.ModelSerializer):
     latest_jumlah_responden = serializers.SerializerMethodField()
     cleaning_personil = serializers.CharField(read_only=True)
 
+    # latest_jumlah_responden = serializers.SerializerMethodField()
+    # def get_latest_jumlah_responden(self, obj):
+    #     last = obj.jumlah_responden.order_by('-updated_at').first()
+    #     return last.jumlah if last else None
+
     def get_latest_jumlah_responden(self, obj):
         last = obj.jumlahresponden_set.order_by('-updated_at').first()
         return last.jumlah if last else None
+        
 
     
     class Meta:
