@@ -15,11 +15,21 @@ import os
 import dj_database_url
 from pathlib import Path
 
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 PRODUCTION = os.getenv('DATABASE_PUBLIC_URL') is not None
+
+env = environ.Env()
+# read .env file from project root
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+GITHUB_TOKEN  = env('GITHUB_TOKEN')
+GITHUB_REPO   = env('GITHUB_REPO')
+GITHUB_BRANCH = env('GITHUB_BRANCH', default='master')
+CSV_PATH      = env('CSV_PATH', default='data.csv')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -49,13 +59,14 @@ INSTALLED_APPS = [
     'accounts',
     'rest_framework.authtoken',
     'klien',
-    'survei',
+    # 'survei',
     'tracker_survei',
     'buatAkun',
     'daftarAkun',
     'dokumen_pendukung',
     'souvenir',
     'dashboard',
+    'survei.apps.SurveiConfig',
 ]
 
 MIDDLEWARE = [
@@ -161,7 +172,7 @@ AUTHENTICATION_BACKENDS = [
 
 
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:3000', "https://siap-fe-production.up.railway.app",]
+CSRF_TRUSTED_ORIGINS = ['http://localhost:3000',]
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
@@ -196,7 +207,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Allow requests from the Next.js frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Frontend URL
-    "https://siap-fe-production.up.railway.app"
 ]
 
 CORS_ALLOW_METHODS = [

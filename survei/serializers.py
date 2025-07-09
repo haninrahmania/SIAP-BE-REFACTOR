@@ -1,3 +1,4 @@
+import datetime
 from rest_framework import serializers
 from .models import Survei
 from souvenir.models import Souvenir
@@ -75,38 +76,67 @@ class SurveiPost(serializers.ModelSerializer):
         source='klien',
         write_only=True
     )
-    nama_klien = serializers.SerializerMethodField()
-    wilayah_survei = serializers.ListField(
-        child=serializers.DictField(),
-        write_only=True
-    )
-    wilayah_survei_names = serializers.SerializerMethodField()
+    nama_klien = serializers.SerializerMethodField(read_only=True)
+    wilayah_survei = serializers.ListField(child=serializers.DictField(), write_only=True)
+    wilayah_survei_names = serializers.SerializerMethodField(read_only=True)
+    souvenir = serializers.PrimaryKeyRelatedField(queryset=Souvenir.objects.all(), allow_null=True, required=False)
+    ppk = serializers.ListField(child=serializers.DictField(), required=False)
+    peneliti = serializers.ListField(child=serializers.DictField(), required=False)
 
     class Meta:
         model = Survei
         fields = (
-            "id", "nama_survei", "waktu_mulai_survei",
-            "waktu_berakhir_survei", "klien_id", "nama_klien",
-            "harga_survei", "ruang_lingkup", "wilayah_survei",
-            "wilayah_survei_names", "jumlah_responden", "tipe_survei"
+            'id', 'judul_survei', 'klien_id', 'nama_klien', 'jenis_survei',
+            'ruang_lingkup', 'wilayah_survei', 'wilayah_survei_names',
+            'tipe_survei', 'jumlah_responden', 'harga_survei',
+            'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
+            'milestone_1', 'milestone_2', 'milestone_3',
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir'
         )
 
     def get_nama_klien(self, obj):
-        """Return nama_perusahaan from the related DataKlien model as nama_klien."""
-        return obj.klien.nama_perusahaan if obj.klien else None
+        if obj.klien:
+            return DataKlienSerializer(obj.klien).data.get("display_name")
+        return None
 
     def get_wilayah_survei_names(self, obj):
-        """Concatenate wilayah_survei names as a comma-separated string."""
-        return obj.wilayah_survei
+        if isinstance(obj.wilayah_survei, list):
+            return [w.get("name", "") for w in obj.wilayah_survei if isinstance(w, dict)]
+        elif isinstance(obj.wilayah_survei, str):
+            return [item.strip() for item in obj.wilayah_survei.split(",")]
+        return []
 
     def validate_wilayah_survei(self, value):
-        """Ensure wilayah_survei is a list of dictionaries."""
         if not isinstance(value, list):
-            raise serializers.ValidationError("wilayah_survei must be a list of objects.")
+            raise serializers.ValidationError("wilayah_survei must be a list.")
         for item in value:
             if 'name' not in item:
-                raise serializers.ValidationError("Each wilayah_survei object must have a 'name' field.")
+                raise serializers.ValidationError("Each item must have a 'name' field.")
         return value
+
+    def validate(self, attrs):
+        jenis = attrs.get("jenis_survei")
+
+        if jenis == "Elektoral":
+            # Kosongkan milestone
+            attrs["milestone_1"] = None
+            attrs["milestone_2"] = None
+            attrs["milestone_3"] = None
+
+        else:
+            # Pastikan milestone dalam format tanggal yang valid
+            for field in ['milestone_1', 'milestone_2', 'milestone_3']:
+                value = attrs.get(field)
+                if value:
+                    if isinstance(value, str):
+                        try:
+                            attrs[field] = datetime.strptime(value, "%Y-%m-%d").date()
+                        except ValueError:
+                            raise serializers.ValidationError({
+                                field: "Format tanggal salah. Gunakan format YYYY-MM-DD."
+                            })
+
+        return attrs
 
     def create(self, validated_data):
         souvenir = validated_data.get('souvenir')
