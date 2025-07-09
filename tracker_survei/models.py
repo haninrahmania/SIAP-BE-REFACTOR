@@ -61,7 +61,7 @@ class TrackerSurvei(models.Model):
     penyerahan_laporan = models.CharField(max_length=20, choices=STATUS_CHOICES_DEFAULT, default='NOT_STARTED')
 
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateField(auto_now=True)
     last_status = models.CharField(max_length=100, null=True, blank=True)
 
     def update_last_status(self):
