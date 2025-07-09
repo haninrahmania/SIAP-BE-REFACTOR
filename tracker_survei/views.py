@@ -4,8 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
-from .models import TrackerSurvei
-from .serializers import TrackerSurveiSerializer, TrackerGet
+from .models import TrackerSurvei, JumlahResponden
+from .serializers import TrackerSurveiSerializer, TrackerGet, JumlahRespondenSerializer
 import logging
 from survei.models import Survei
 from survei.serializers import SurveiGet, SurveiPost
@@ -37,7 +37,7 @@ def validate_role_fields(user_role, data):
             'penyerahan_laporan'
         },
         'Pengendali Mutu': {
-            'pra_survei', 'turun_lapangan', 'pantau_data_cleaning'
+            'pra_survei', 'turun_lapangan', 'pantau_responden', 'jumlah_responden', 'pantau_data_cleaning', 'cleaning_personil',
         },
         'Logistik': {
             'terima_request_souvenir', 'ambil_souvenir'
@@ -58,6 +58,8 @@ def validate_role_fields(user_role, data):
 def safe_update_tracker(tracker, user_role, update_data):
     """Safely update tracker with validation and error handling."""
     current_state = {} 
+
+    
 
     try:
         # First validate role permissions
@@ -109,16 +111,38 @@ def handle_tracker_update(request, survei_id, allowed_roles):
 
         # Get tracker instance
         tracker = get_object_or_404(TrackerSurvei, survei_id=survei_id)
-        
-        # Update tracker
-        error = safe_update_tracker(tracker, request.user.role, request.data)
+        # jumlah_responden = request.data.get("jumlah_responden")
+
+        # Copy request data
+        request_data = request.data.copy()
+
+        # Tangani jumlah_responden khusus
+        jumlah_responden = request_data.pop("jumlah_responden", None)
+        if jumlah_responden is not None:
+            try:
+                jumlah_responden = int(jumlah_responden)
+                from tracker_survei.models import JumlahResponden
+                JumlahResponden.objects.create(tracker=tracker, jumlah=jumlah_responden)
+
+                # Tandai bahwa sudah isi jumlah responden
+                tracker.pantau_responden = True
+                tracker.save(update_fields=["pantau_responden"])
+
+            except ValueError:
+                return Response(
+                    {"error": "jumlah_responden harus berupa angka"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Update tracker (tanpa jumlah_responden)
+        error = safe_update_tracker(tracker, request.user.role, request_data)
         
         if error:
             return Response(error, status=status.HTTP_400_BAD_REQUEST)
             
         # Return updated data
         serializer = TrackerSurveiSerializer(tracker)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
         
     except Exception as e:
         logger.error(f"Error updating tracker status: {str(e)}")
@@ -183,12 +207,12 @@ def get_list_survei(request):
         # Apply search if query exists
         if search_query:
             surveys = surveys.filter(
-                Q(nama_survei__icontains=search_query) |
+                Q(judul_survei__icontains=search_query) |
                 Q(klien__nama_perusahaan__icontains=search_query) 
             )
         
         # Order by nama_survei
-        surveys = surveys.order_by('nama_survei')
+        surveys = surveys.order_by('judul_survei')
         
         # Create paginator
         paginator = Paginator(surveys, page_size)
@@ -234,3 +258,13 @@ def get_list_dashboard(request):
             {'error': 'Failed to fetch dashboard data'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_jumlah_responden(request, tracker_id):
+    tracker = get_object_or_404(TrackerSurvei, id=tracker_id)
+    serializer = JumlahRespondenSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(tracker=tracker)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)

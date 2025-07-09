@@ -25,6 +25,7 @@ STATUS_CHOICES_TURUN_LAPANGAN = STATUS_CHOICES_DEFAULT + [
 
 STATUS_CHOICES_PANTAU_CLEANING = STATUS_CHOICES_DEFAULT + [
     ('CLEANING', 'Cleaning in Progress'),
+    ('CLEANED', 'Cleaned'),
 ]
 
 class TrackerSurvei(models.Model):
@@ -47,8 +48,10 @@ class TrackerSurvei(models.Model):
     # Pengendali Mutu
     pra_survei = models.CharField(max_length=30, choices=STATUS_CHOICES_PRA_SURVEI, default='NOT_STARTED')
     turun_lapangan = models.CharField(max_length=30, choices=STATUS_CHOICES_TURUN_LAPANGAN, default='NOT_STARTED')
-    pantau_responden = models.CharField(max_length=30, blank=True, null=True)  
+    pantau_responden = models.BooleanField(default=False)
     pantau_data_cleaning = models.CharField(max_length=30, choices=STATUS_CHOICES_PANTAU_CLEANING, default='NOT_STARTED')
+    cleaning_personil = models.CharField(max_length=255, null=True, blank=True)
+
 
     # Administrasi Akhir
     buat_invoice_final = models.CharField(max_length=20, choices=STATUS_CHOICES_DEFAULT, default='NOT_STARTED')
@@ -132,9 +135,12 @@ class TrackerSurvei(models.Model):
         ])
 
     def is_pengendali_mutu_finished(self):
-        return all(getattr(self, field) == 'FINISHED' for field in [
-            'pra_survei', 'turun_lapangan', 'pantau_data_cleaning'
-        ])
+        return (
+            self.pra_survei in ['FINISHED', 'PRE_TEST', 'SKIP_PRE_TEST'] and
+            self.turun_lapangan in ['WORKSHOP', 'INPUT_DATA'] and
+            self.pantau_data_cleaning == 'CLEANED' and
+            self.pantau_responden
+        )
 
     def is_administrasi_akhir_finished(self):
         return all(getattr(self, field) == 'FINISHED' for field in [
@@ -168,8 +174,12 @@ class TrackerSurvei(models.Model):
             raise ValidationError('Turun Lapangan harus selesai sebelum Memantau responden dapat diisi')
             
 
-        if self.pantau_data_cleaning != 'NOT_STARTED' and self.turun_lapangan != 'FINISHED':
+        if self.pantau_data_cleaning != 'NOT_STARTED' and not self.pantau_responden:
             raise ValidationError('Memantau responden harus diisi sebelum bisa Memantau Data Cleaning')
+
+        # if self.pantau_responden and self.pantau_responden.strip().lower() == 'n':
+        if isinstance(self.pantau_responden, str) and self.pantau_responden.strip().lower() == 'n':
+            raise ValidationError('Isian "pantau responden" tidak valid.')
 
         if any(getattr(self, field) != 'NOT_STARTED' for field in ['pembuatan_laporan', 'buat_invoice_final', 'pembayaran_lunas', 'pembuatan_kwitansi_final', 'penyerahan_laporan']) and not self.is_pengendali_mutu_finished():
             raise ValidationError('Semua tugas Pengendali Mutu harus selesai sebelum memulai Administrasi Akhir')
@@ -192,3 +202,19 @@ class TrackerSurvei(models.Model):
     def create_tracker(sender, instance, created, **kwargs):
         if created:
             TrackerSurvei.objects.create(survei=instance)
+
+class JumlahResponden(models.Model):
+    tracker = models.ForeignKey(
+        TrackerSurvei,
+        on_delete=models.CASCADE,
+        related_name='jumlah_responden'  
+    )
+    jumlah = models.IntegerField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'jumlah_responden'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Responden: {self.jumlah} (Tracker ID {self.tracker_id})"

@@ -577,7 +577,7 @@ def generate_kwitansi_dp(request):
 
     formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
 
-    formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
+    # formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
 
     # Save the data to the kwitansi_dp table
     KwitansiDP.objects.create(
@@ -612,7 +612,7 @@ def generate_kwitansi_dp(request):
     sheet.merge_cells('A11:L11')
     sheet.merge_cells('E14:G14')
     sheet.merge_cells('E16:G16')
-    sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
+    # sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
     sheet.merge_cells(start_row=17, start_column=5, end_row=18, end_column=7)
     sheet.merge_cells('E19:G19')
     sheet.merge_cells('B27:E27')
@@ -676,7 +676,7 @@ def export_existing_kwitansi_dp(request):
     sheet.merge_cells('A11:L11')
     sheet.merge_cells('E14:G14')
     sheet.merge_cells('E16:G16')
-    sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
+    # sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
     sheet.merge_cells(start_row=17, start_column=5, end_row=18, end_column=7)
     sheet.merge_cells('E19:G19')
     sheet.merge_cells('B27:E27')
@@ -740,7 +740,7 @@ def export_existing_kwitansi_final(request):
     sheet.merge_cells('A11:L11')
     sheet.merge_cells('E14:G14')
     sheet.merge_cells('E16:G16')
-    sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
+    # sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
     sheet.merge_cells(start_row=17, start_column=5, end_row=18, end_column=7)
     sheet.merge_cells('E19:G19')
     sheet.merge_cells('B27:E27')
@@ -792,7 +792,7 @@ def generate_kwitansi_final(request):
 
     formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
 
-    formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
+    # formatted_date = datetime.strptime(user_data['date'], '%Y-%m-%d').strftime("Jakarta, %d %B %Y")
 
     # Save the data to the kwitansi_dp table
     KwitansiDP.objects.create(
@@ -827,7 +827,7 @@ def generate_kwitansi_final(request):
     sheet.merge_cells('A11:L11')
     sheet.merge_cells('E14:G14')
     sheet.merge_cells('E16:G16')
-    sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
+    # sheet.merge_cells(start_row=17, start_column=1, end_row=18, end_column=3)
     sheet.merge_cells(start_row=17, start_column=5, end_row=18, end_column=7)
     sheet.merge_cells('E19:G19')
     sheet.merge_cells('B27:E27')
