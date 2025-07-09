@@ -37,7 +37,7 @@ def validate_role_fields(user_role, data):
             'penyerahan_laporan'
         },
         'Pengendali Mutu': {
-            'pra_survei', 'turun_lapangan', 'pantau_responden', 'jumlah_responden', 'pantau_data_cleaning', 'cleaning_personil',
+            'pra_survei', 'turun_lapangan', 'pantau_responden', 'jumlah_responden', 'pantau_data_cleaning'
         },
         'Logistik': {
             'terima_request_souvenir', 'ambil_souvenir'
