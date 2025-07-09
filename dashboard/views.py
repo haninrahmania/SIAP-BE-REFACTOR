@@ -6,6 +6,8 @@ from tracker_survei.models import TrackerSurvei
 
 @api_view(['GET'])
 def get_surveys_by_scope(request, scope):
+    print("View berhasil dipanggil dengan scope:", scope)
+    
     paginator = PageNumberPagination()
 
     start_date = request.GET.get('start_date')
@@ -29,7 +31,7 @@ def get_surveys_by_scope(request, scope):
                 surveys.append(tracker)
             elif scope == 'provinsi' and tracker.survei.ruang_lingkup == 'Provinsi':
                 surveys.append(tracker)
-            elif scope == 'kota' and tracker.survei.ruang_lingkup == 'Kota':
+            elif scope == "kabupaten-kota" and tracker.survei.ruang_lingkup == 'Kabupaten/Kota':
                 surveys.append(tracker)
             elif scope == 'keseluruhan':
                 surveys.append(tracker)
@@ -46,9 +48,9 @@ def get_surveys_by_scope(request, scope):
         survey = tracker.survei
         survey_data = {
             'id': tracker.id,
-            'nama_survei': survey.nama_survei,
-            'waktu_mulai_survei': survey.waktu_mulai_survei,
-            'waktu_berakhir_survei': survey.waktu_berakhir_survei,
+            'nama_survei': survey.judul_survei,
+            'waktu_mulai_survei': survey.tanggal_spk,
+            'waktu_berakhir_survei': survey.tanggal_selesai,
             'klien': survey.klien.nama_perusahaan,
             'harga_survei': survey.harga_survei,
             'ruang_lingkup': survey.ruang_lingkup,
