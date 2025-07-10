@@ -15,6 +15,7 @@ import os
 import dj_database_url
 from pathlib import Path
 
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ PRODUCTION = os.getenv('DATABASE_PUBLIC_URL') is not None
 
 env = environ.Env()
 # read .env file from project root
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # add to enable push to csv in public repo for map updates
 GITHUB_TOKEN  = env('GITHUB_TOKEN')
