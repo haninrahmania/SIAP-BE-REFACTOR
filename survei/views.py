@@ -1,5 +1,8 @@
+from github import logger
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, action, parser_classes
+
+# from survei.signals import push_province_counts
 from .models import Survei, DataKlien, Souvenir
 from .serializers import SurveiPost, DataKlienSerializer, SouvenirSerializer, SurveiGet
 from rest_framework import status
@@ -9,6 +12,7 @@ from collections import defaultdict
 from rest_framework.parsers import MultiPartParser
 import os
 from django.conf import settings
+from django.db.models import Count
 
 class SurveiViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
@@ -55,6 +59,13 @@ def add_survei(request):
     serializer = SurveiPost(data=request.data)
     if serializer.is_valid():
         instance = serializer.save()
+
+        # try:
+        #     push_counts_to_external_repo()  
+        # except Exception as e:
+        # # log but don’t 500 your API
+        #     logger.error("Failed pushing CSV after creating Survei: %s", e)
+
         return Response(SurveiPost(instance).data, status=201)
     print("ERROR ADD SURVEI:", serializer.errors)
     return Response(serializer.errors, status=400)
@@ -136,10 +147,9 @@ def get_survei_count_by_souvenir(request):
     ]
 
     return Response(data, status=status.HTTP_200_OK)
-    ruang_lingkup = request.query_params.get('ruang_lingkup', None)
 
 @api_view(['GET'])
-def survey_counts_by_province(request): # untuk counter diagram peta
+def survey_counts_by_province(request):
     qs = (
         Survei.objects
               .values('wilayah_survei')                 # group by this field
