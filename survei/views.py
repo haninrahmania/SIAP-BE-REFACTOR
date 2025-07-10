@@ -60,11 +60,11 @@ def add_survei(request):
     if serializer.is_valid():
         instance = serializer.save()
 
-        try:
-            push_counts_to_external_repo()  
-        except Exception as e:
-        # log but don’t 500 your API
-            logger.error("Failed pushing CSV after creating Survei: %s", e)
+        # try:
+        #     push_counts_to_external_repo()  
+        # except Exception as e:
+        # # log but don’t 500 your API
+        #     logger.error("Failed pushing CSV after creating Survei: %s", e)
 
         return Response(SurveiPost(instance).data, status=201)
     print("ERROR ADD SURVEI:", serializer.errors)
