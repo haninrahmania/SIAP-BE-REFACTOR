@@ -21,6 +21,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 PRODUCTION = os.getenv('DATABASE_PUBLIC_URL') is not None
 
+env = environ.Env()
+# read .env file from project root
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+# add to enable push to csv in public repo for map updates
+GITHUB_TOKEN  = env('GITHUB_TOKEN')
+GITHUB_REPO   = env('GITHUB_REPO')
+GITHUB_BRANCH = env('GITHUB_BRANCH', default='master')
+CSV_PATH      = env('CSV_PATH', default='data.csv')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
