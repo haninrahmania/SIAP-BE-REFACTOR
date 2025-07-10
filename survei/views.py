@@ -138,73 +138,15 @@ def get_survei_count_by_souvenir(request):
     return Response(data, status=status.HTTP_200_OK)
     ruang_lingkup = request.query_params.get('ruang_lingkup', None)
 
-    REGION_CODE_MAPPING = {
-        "Aceh": "ID.AC",
-        "Bali": "ID.BA",
-        "Banten": "ID.BT", 
-        "Bengkulu": "ID.BE",
-        "DKI Jakarta": "ID.JK",
-        "Gorontalo": "ID.GO",
-        "Jambi": "ID.JA",
-        "Jawa Barat": "ID.JR",
-        "Jawa Tengah": "ID.JT",
-        "Jawa Timur": "ID.JI",
-        "Kalimantan Barat": "ID.KB",
-        "Kalimantan Selatan": "ID.KS",
-        "Kalimantan Tengah": "ID.KT",
-        "Kalimantan Timur": "ID.KI",
-        "Kepulauan Bangka Belitung": "ID.BB",
-        "Kepulauan Riau": "ID.KR",
-        "Lampung": "ID.LA",
-        "Maluku": "ID.MA",
-        "Nusa Tenggara Barat": "ID.NB",
-        "Nusa Tenggara Timur": "ID.NT",
-        "Papua": "ID.PA",
-        "Papua Barat": "ID.IB",
-        "Riau": "ID.RI",
-        "Sulawesi Barat": "ID.SR",
-        "Sulawesi Selatan": "ID.SL",
-        "Sulawesi Tengah": "ID.ST",
-        "Sulawesi Tenggara": "ID.SG",
-        "Sulawesi Utara": "ID.SW",
-        "Sumatera Barat": "ID.SB",
-        "Sumatera Selatan": "ID.SE",
-        "Sumatera Utara": "ID.SU",
-        "Yogyakarta": "ID.YO",
-        "Maluku Utara": "ID.133"
-    }
-
-    if ruang_lingkup not in ["Nasional", "Provinsi"]:
-        return Response(
-            {"error": "Invalid ruang_lingkup parameter. Must be 'Nasional' or 'Provinsi'"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    if ruang_lingkup == "Nasional":
-        # Count all national surveys
-        count = Survei.objects.filter(ruang_lingkup="Nasional").count()
-        data = [{"id": "ID", "value": count}]
-        return Response(data, status=status.HTTP_200_OK)
-    
-    else:  # Provinsi
-        # Get all provincial surveys
-        provinsi_surveys = Survei.objects.filter(ruang_lingkup="Provinsi")
-        
-        # Initialize count dictionary for all regions
-        region_counts = {code: 0 for code in REGION_CODE_MAPPING.values()}
-        
-        # Count occurrences of each province
-        for survey in provinsi_surveys:
-            # Split the wilayah_survei_names into individual provinces
-            if survey.wilayah_survei:
-                provinces = [p.strip() for p in survey.wilayah_survei.split(',')]
-                for province in provinces:
-                    if province in REGION_CODE_MAPPING:
-                        region_code = REGION_CODE_MAPPING[province]
-                        region_counts[region_code] += 1
-
-        # Format data for AnyChart
-        data = [{"id": region_id, "value": count} 
-                for region_id, count in region_counts.items()]
-        
-        return Response(data, status=status.HTTP_200_OK)
+@api_view(['GET'])
+def survey_counts_by_province(request): # untuk counter diagram peta
+    qs = (
+        Survei.objects
+              .values('wilayah_survei')                 # group by this field
+              .annotate(count=Count('wilayah_survei'))  # count per group
+    )
+    data = [
+        {"name": item["wilayah_survei"], "value": item["count"]}
+        for item in qs
+    ]
+    return Response(data)
