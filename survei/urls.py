@@ -13,4 +13,5 @@ urlpatterns=[
     path("delete-survei/<str:id>/",delete_survei),
     path('init_data/', survei_init_data, name='survei-init-data'),
     path("upload-ktp/", upload_ktp, name="upload_ktp"),
+    path('count-by-province/', survey_counts_by_province, name='survey-counts'),
 ]
