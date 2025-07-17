@@ -15,6 +15,16 @@ from github import Github, GithubException
 
 from .models import Survei
 
+# --- Current Peta Survei logic:
+# 1. Mapping setiap province ke kode wilayah
+# 2. Survey Counts by Province untuk menghitung jumlah survei per provinsi
+# 3. Push ke data.csv pada public github repo sebagai datasource setiap kali Add New Survey
+#    untuk meng-increment jumlah survei
+# 4. Peta akan ter-update shortly after (Datawrapper tidak mendukung instant live update)
+# Konteks: csv pada public github repo digunakan karena Datawrapper tidak mendukung
+#          penggunaan local endpoint, sehingga diperlukan datasource yang dapat diakses.
+#          Hal ini dapat dipermudah ketika nanti sudah melakukan deployment (memakai API SIAP saja).
+
 def parse_wilayah(w):
     """
     Accept either a Python-list string or an actual list of dicts,

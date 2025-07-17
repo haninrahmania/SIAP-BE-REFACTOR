@@ -13,6 +13,7 @@ from rest_framework.parsers import MultiPartParser
 import os
 from django.conf import settings
 from django.db.models import Count
+from django.utils import timezone
 
 class SurveiViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
@@ -150,6 +151,11 @@ def get_survei_count_by_souvenir(request):
 
 @api_view(['GET'])
 def survey_counts_by_province(request):
+    today = timezone.localtime(timezone.now()).date()
+    # Filter for Hanya Survei Sekarang
+    if request.GET.get('status') == 'ongoing':
+        qs = qs.filter(TanggalSelesai__gt=today)
+
     qs = (
         Survei.objects
               .values('wilayah_survei')                 # group by this field
@@ -159,4 +165,13 @@ def survey_counts_by_province(request):
         {"name": item["wilayah_survei"], "value": item["count"]}
         for item in qs
     ]
+
+    # ---Datawrapper hanya bisa men-support dynamic endpoint, sehingga 
+    # filter hanya bisa dipakai saat sudah di-deploy---
+
+    # ---Return jika sudah deployed berupa Json Response---
+    # data = [{'id': row['province__kode_provinsi'], 'value': row['value']}
+    #         for row in qs]
+    # return JsonResponse({'data': data})
+
     return Response(data)
