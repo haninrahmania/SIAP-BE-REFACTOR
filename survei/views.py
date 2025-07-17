@@ -152,7 +152,7 @@ def get_survei_count_by_souvenir(request):
 @api_view(['GET'])
 def survey_counts_by_province(request):
     today = timezone.localtime(timezone.now()).date()
-    # Filter for Hanya Survei Sekarang
+    # Filter for Hanya Survei Sekarang; a new Datawrapper map will be mapped for ?status=ongoing
     if request.GET.get('status') == 'ongoing':
         qs = qs.filter(TanggalSelesai__gt=today)
 
