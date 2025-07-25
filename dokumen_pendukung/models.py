@@ -99,3 +99,25 @@ class KwitansiFinal(models.Model):
 
     def __str__(self):
         return f"{self.client_name} - {self.survey_name}"
+    
+class BAST(models.Model):
+    nomor = models.CharField(max_length=100, unique=True)
+    tanggal = models.DateField()
+    nama_pihak_pertama = models.CharField(max_length=255)
+    alamat_pihak_pertama = models.CharField(max_length=255)
+    jabatan_pihak_pertama = models.CharField(max_length=255)
+    nama_pihak_kedua = models.CharField(max_length=255)
+    jabatan_pihak_kedua = models.CharField(max_length=255)
+    alamat_pihak_kedua = models.CharField(max_length=255)
+    nomor_spk = models.CharField(max_length=255)
+    tanggal_spk = models.DateField()
+    judul_survei = models.CharField(max_length=255)
+    nilai_kontrak_angka = models.DecimalField(max_digits=14, decimal_places=2)
+    nilai_kontrak_tertulis = models.TextField()
+    nomor_addendum = models.CharField(max_length=255)
+    tanggal_addendum = models.DateField()
+    tanggal_tertulis = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+                
+
