@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import generate_invoice_dp, generate_invoice_final, download_template_proposal, upload_template_proposal, download_template_kontrak, upload_template_kontrak, generate_kwitansi_dp, generate_kwitansi_final, export_existing_invoice_dp, export_existing_invoice_final, export_existing_kwitansi_dp, export_existing_kwitansi_final, list_template_proposals, get_proposal_template_history, convert_pptx_to_image, delete_template_proposal_by_id, delete_kontrak_template, get_kontrak_template_history
+from .views import generate_invoice_dp, generate_invoice_final, download_template_proposal, upload_template_proposal, download_template_kontrak, upload_template_kontrak, generate_kwitansi_dp, generate_kwitansi_final, export_existing_invoice_dp, export_existing_invoice_final, export_existing_kwitansi_dp, export_existing_kwitansi_final, list_template_proposals, get_proposal_template_history, convert_pptx_to_image, delete_template_proposal_by_id, delete_kontrak_template, get_kontrak_template_history, generate_bast
 
 urlpatterns = [
     path('generate_invoice_dp/', generate_invoice_dp, name='generate_invoice_dp'),
@@ -20,6 +20,6 @@ urlpatterns = [
     path('get_proposal_template_history/', get_proposal_template_history, name='get_proposal_template_history'),
     path('convert_pptx_to_image/', convert_pptx_to_image, name='convert_pptx_to_image'),
     path('delete_template_proposal_by_id/<int:id>/', delete_template_proposal_by_id, name='delete_template_proposal_by_id'),
-
+    path('generate_bast/', generate_bast, name='generate_bast'),
 
 ]
