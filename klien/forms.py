@@ -7,6 +7,7 @@ class DataKlienForm(forms.ModelForm):
         fields = [
             'nama_klien',
             'nama_perusahaan',
+            'jabatan',
             'daerah',
             'kategori_klien',
             'no_telp',
