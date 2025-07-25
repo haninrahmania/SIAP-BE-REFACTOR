@@ -18,6 +18,7 @@ class DataKlien(models.Model):
 
     nama_klien = models.CharField(max_length=50)
     nama_perusahaan = models.CharField(max_length=100)
+    jabatan = models.TextField()
     daerah = models.TextField()
     kategori_klien = models.CharField(
         max_length=20,
