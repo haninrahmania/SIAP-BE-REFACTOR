@@ -32,7 +32,7 @@ class SurveiGet(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian', 'klien_id'
         )
 
     def get_nama_klien(self, obj):
