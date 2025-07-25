@@ -4,6 +4,7 @@ from .models import Survei
 from souvenir.models import Souvenir
 from tracker_survei.models import JumlahResponden
 from klien.models import DataKlien
+from django.utils import timezone
 
 class DataKlienSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
@@ -32,7 +33,7 @@ class SurveiGet(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian', 'klien_id'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian', 'klien_id', 'nomor_spk'
         )
 
     def get_nama_klien(self, obj):
@@ -91,7 +92,7 @@ class SurveiPost(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'nomor_spk'
         )
 
     def get_nama_klien(self, obj):
@@ -152,6 +153,42 @@ class SurveiPost(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)
+    
+    # override method
+    def create(self, validated_data):
+        today = timezone.now().date()
+        month = today.month
+        year = today.year
+        month_roman = int_to_roman(month)
+
+        # Hitung berapa banyak SPK yang sudah dibuat di bulan dan tahun ini
+        existing_count = Survei.objects.filter(
+            tanggal_spk__year=year,
+            tanggal_spk__month=month
+        ).count()
+
+        # Generate nomor SPK dengan leading zero
+        next_number = existing_count + 1
+        formatted_number = f"{next_number:03d}"
+        nomor_spk = f"{formatted_number}/SPK/{month_roman}/{year}"
+
+        validated_data['nomor_spk'] = nomor_spk
+
+        # Fallback jika tanggal_spk belum diisi
+        if not validated_data.get('tanggal_spk'):
+            validated_data['tanggal_spk'] = today
+
+        # Handle stok souvenir
+        souvenir = validated_data.get('souvenir')
+        jumlah_souvenir = validated_data.get('jumlah_souvenir', 0)
+
+        instance = super().create(validated_data)
+
+        if souvenir and jumlah_souvenir:
+            souvenir.jumlah_stok -= jumlah_souvenir
+            souvenir.save()
+
+        return instance
 
 
 class SouvenirSerializer(serializers.ModelSerializer):
@@ -184,3 +221,9 @@ class JumlahRespondenSerializer(serializers.ModelSerializer):
     class Meta:
         model = JumlahResponden
         fields = ['jumlah', 'updated_at']
+
+# Tambahan helper function roman number
+def int_to_roman(month):
+    romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+    return romans[month - 1]
+
