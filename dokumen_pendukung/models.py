@@ -117,6 +117,8 @@ class BAST(models.Model):
     nomor_addendum = models.CharField(max_length=255)
     tanggal_addendum = models.DateField()
     tanggal_tertulis = models.TextField()
+    doc_type = models.CharField(max_length=50, default="bast")  # Added max_length
+    # is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
                 
