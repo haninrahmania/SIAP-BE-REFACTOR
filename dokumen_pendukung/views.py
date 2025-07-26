@@ -1,3 +1,4 @@
+from django.forms import ValidationError
 from django.shortcuts import render
 
 import os
@@ -12,7 +13,7 @@ from django.conf import settings
 import json
 from rest_framework.decorators import api_view
 from openpyxl.styles import Font
-from .models import InvoiceDP, InvoiceFinal, KwitansiDP, KwitansiFinal, TemplateProposal, ProposalTemplateHistory, KontrakTemplateHistory
+from .models import InvoiceDP, InvoiceFinal, KwitansiDP, KwitansiFinal, TemplateProposal, ProposalTemplateHistory, KontrakTemplateHistory, BAST
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 # from django.contrib.auth.decorators import login_required
@@ -27,6 +28,244 @@ import io
 
 User = get_user_model()
 
+def parse_date(date_str):
+    if not date_str:
+        raise ValidationError("Tanggal tidak boleh kosong")
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValidationError(f"Format tanggal salah: {date_str}")
+
+def get_next_bast_number():
+    from .models import BAST
+    latest = BAST.objects.order_by('-created_at').first()
+    if latest and latest.nomor:
+        try:
+            return int(latest.nomor.split("/")[0]) + 1
+        except:
+            return 1
+    return 1
+
+@api_view(['POST'])
+def export_existing_bast(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        judul_survei = data.get('data')  # Ambil dari payload: {data: "judul survei"}
+
+        try:
+            bast_obj = BAST.objects.get(judul_survei=judul_survei)
+        except BAST.DoesNotExist:
+            return JsonResponse({'error': 'Data BAST tidak ditemukan untuk judul survei tersebut.'}, status=404)
+    
+    # Ambil data dari objek model
+    bast_data = {
+        'nomor': bast_obj.nomor,
+        'nama_pihak_pertama': bast_obj.nama_pihak_pertama,
+        'jabatan_pihak_pertama': bast_obj.jabatan_pihak_pertama,
+        'alamat_pihak_pertama': bast_obj.alamat_pihak_pertama,
+        'nama_pihak_kedua': bast_obj.nama_pihak_kedua,
+        'jabatan_pihak_kedua': bast_obj.jabatan_pihak_kedua,
+        'alamat_pihak_kedua': bast_obj.alamat_pihak_kedua,
+        'nomor_spk': bast_obj.nomor_spk,
+        'tanggal_spk': bast_obj.tanggal_spk.strftime('%Y-%m-%d') if bast_obj.tanggal_spk else '',
+        'judul_survei': bast_obj.judul_survei,
+        'nomor_addendum': bast_obj.nomor_addendum,
+        'tanggal_addendum': bast_obj.tanggal_addendum.strftime('%Y-%m-%d') if bast_obj.tanggal_addendum else '',
+        'tanggal_tertulis': bast_obj.tanggal_tertulis,
+        'tanggal_serah_terima': bast_obj.tanggal.strftime('%Y-%m-%d') if bast_obj.tanggal else datetime.now().strftime('%Y-%m-%d'),
+        'nilai_kontrak_angka': str(bast_obj.nilai_kontrak_angka),
+        'nilai_kontrak_tertulis': bast_obj.nilai_kontrak_tertulis,
+    }
+
+
+    # current_date = datetime.now()
+    # month_roman = month_to_roman(current_date.month)
+    # year = current_date.year
+    # bast_number = get_next_bast_number()
+    # bast_code = f"{bast_number}/BAST/{month_roman}/{year}"
+    # bast_id = bast_code
+
+    # formatted_date = datetime.strptime(
+    #     bast_data['tanggal_serah_terima'], '%Y-%m-%d'
+    # ).strftime("Jakarta, %d %B %Y")
+
+    baris_atas, baris_bawah = split_to_two_cells(bast_data['judul_survei'], max_length=60)
+
+    formatted_nilai_kontrak = f"{bast_data['nilai_kontrak_angka']} (sudah termasuk pajak)"
+    formatted_tanggal_tertulis = f"{bast_data['tanggal_tertulis']} kami yang bertandatangan di bawah ini:"
+
+
+# Load template Excel
+    template_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateBAST.xlsx')
+    workbook = load_workbook(template_path)
+    sheet = workbook.active
+
+    # Styling font
+    times_font = Font(name="Times New Roman")
+    for row in sheet.iter_rows():
+        for cell in row:
+            cell.font = times_font
+
+
+    # Isi data ke template
+    sheet['B1'].font = Font(name="Times New Roman", bold=True, underline="single")
+    sheet['B25'].font = Font(name="Times New Roman", bold=True)
+    sheet['C25'].font = Font(name="Times New Roman", bold=True)
+    sheet['B2'] = bast_data['nomor']
+    sheet['D3'] = formatted_tanggal_tertulis
+    sheet['G5'] = bast_data['nama_pihak_pertama']
+    sheet['G6'] = bast_data['jabatan_pihak_pertama']
+    sheet['G7'] = bast_data['alamat_pihak_pertama']
+    sheet['G9'] = bast_data['nama_pihak_kedua']
+    sheet['G10'] = bast_data['jabatan_pihak_kedua']
+    sheet['G11'] = bast_data['alamat_pihak_kedua']
+    sheet['I14'] = bast_data['nomor_spk']
+    sheet['I15'] = bast_data['tanggal_spk']
+    sheet['I17'] = bast_data['nomor_addendum']
+    sheet['I18'] = bast_data['tanggal_addendum']
+    sheet['I20'] = bast_data['nomor']
+    sheet['I21'] = bast_data['tanggal_serah_terima']
+    sheet['J23'] = baris_atas
+    sheet['B24'] = baris_bawah
+    sheet['C26'] = bast_data['judul_survei']
+    sheet['E28'] = formatted_nilai_kontrak
+    sheet['D29'] = bast_data['nilai_kontrak_tertulis']
+    sheet['D37'] = bast_data['nama_pihak_kedua']
+    sheet['D38'] = bast_data['jabatan_pihak_kedua']
+    sheet['J37'] = bast_data['nama_pihak_pertama']
+    sheet['J38'] = bast_data['jabatan_pihak_pertama']
+    # sheet['G10'] = formatted_date  # misalnya tanda tangan Jakarta, tgl
+
+    # Output response
+    filename = f"BAST_{bast_data['nomor']}.xlsx"
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+    workbook.save(response)
+    return response
+
+
+@api_view(['POST'])
+def generate_bast(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+
+        # Persiapkan data
+        bast_data = {
+            'nama_pihak_pertama': data.get('nama_pihak_pertama', ''),
+            'jabatan_pihak_pertama': data.get('jabatan_pihak_pertama', ''),
+            'alamat_pihak_pertama': data.get('alamat_pihak_pertama', ''),
+            'nama_pihak_kedua': data.get('nama_pihak_kedua', ''),
+            'jabatan_pihak_kedua': data.get('jabatan_pihak_kedua', ''),
+            'alamat_pihak_kedua': data.get('alamat_pihak_kedua', ''),
+            'nomor_spk': data.get('nomor_spk', ''),
+            'tanggal_spk': data.get('tanggal_spk', ''),
+            'judul_survei': data.get('judul_survei', ''),
+            'nomor_addendum': data.get('nomor_addendum', ''),
+            'tanggal_addendum': data.get('tanggal_addendum', ''),
+            'tanggal_tertulis': data.get('tanggal_tertulis', ''),
+            'tanggal_serah_terima': data.get('tanggal', datetime.now().strftime('%Y-%m-%d')),
+            'nilai_kontrak_angka': data.get('nilai_kontrak_angka', '0'),
+            'nilai_kontrak_tertulis': data.get('nilai_kontrak_tertulis', ''),
+        }
+
+        print(f"BAST Data: {bast_data}")
+
+        current_date = datetime.now()
+        month_roman = month_to_roman(current_date.month)
+        year = current_date.year
+        bast_number = get_next_bast_number()
+        bast_code = f"{bast_number}/BAST/{month_roman}/{year}"
+        bast_id = bast_code
+
+        formatted_date = datetime.strptime(
+            bast_data['tanggal_serah_terima'], '%Y-%m-%d'
+        ).strftime("Jakarta, %d %B %Y")
+
+        baris_atas, baris_bawah = split_to_two_cells(bast_data['judul_survei'], max_length=60)
+
+        formatted_nilai_kontrak = f"{bast_data['nilai_kontrak_angka']} (sudah termasuk pajak)"
+        formatted_tanggal_tertulis = f"{bast_data['tanggal_tertulis']} kami yang bertandatangan di bawah ini:"
+
+        # Simpan data jika belum ada
+        if not BAST.objects.filter(nomor=bast_id).exists():
+            BAST.objects.create(
+                nomor=bast_id,
+                tanggal=bast_data['tanggal_serah_terima'],
+                nama_pihak_pertama=bast_data['nama_pihak_pertama'],
+                jabatan_pihak_pertama=bast_data['jabatan_pihak_pertama'],
+                alamat_pihak_pertama=bast_data['alamat_pihak_pertama'],
+                nama_pihak_kedua=bast_data['nama_pihak_kedua'],
+                jabatan_pihak_kedua=bast_data['jabatan_pihak_kedua'],
+                alamat_pihak_kedua=bast_data['alamat_pihak_kedua'],
+                nomor_spk=bast_data['nomor_spk'],
+                tanggal_spk=bast_data['tanggal_spk'],
+                judul_survei=bast_data['judul_survei'],
+                nomor_addendum=bast_data['nomor_addendum'],
+                tanggal_addendum=bast_data['tanggal_addendum'],
+                tanggal_tertulis=bast_data['tanggal_tertulis'],
+                nilai_kontrak_angka=bast_data['nilai_kontrak_angka'],
+                nilai_kontrak_tertulis=bast_data['nilai_kontrak_tertulis'],
+            )
+        else:
+            print(f"Record with id {bast_id} already exists. Skipping creation.")
+
+        # Load template Excel
+        template_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/templates/templateBAST.xlsx')
+        workbook = load_workbook(template_path)
+        sheet = workbook.active
+
+        # Styling font
+        times_font = Font(name="Times New Roman")
+        for row in sheet.iter_rows():
+            for cell in row:
+                cell.font = times_font
+
+
+        # Isi data ke template
+        sheet['B1'].font = Font(name="Times New Roman", bold=True, underline="single")
+        sheet['B25'].font = Font(name="Times New Roman", bold=True)
+        sheet['C25'].font = Font(name="Times New Roman", bold=True)
+        sheet['B2'] = bast_code
+        sheet['D3'] = formatted_tanggal_tertulis
+        sheet['G5'] = bast_data['nama_pihak_pertama']
+        sheet['G6'] = bast_data['jabatan_pihak_pertama']
+        sheet['G7'] = bast_data['alamat_pihak_pertama']
+        sheet['G9'] = bast_data['nama_pihak_kedua']
+        sheet['G10'] = bast_data['jabatan_pihak_kedua']
+        sheet['G11'] = bast_data['alamat_pihak_kedua']
+        sheet['I14'] = bast_data['nomor_spk']
+        sheet['I15'] = bast_data['tanggal_spk']
+        sheet['I17'] = bast_data['nomor_addendum']
+        sheet['I18'] = bast_data['tanggal_addendum']
+        sheet['I20'] = bast_code
+        sheet['I21'] = bast_data['tanggal_serah_terima']
+        sheet['J23'] = baris_atas
+        sheet['B24'] = baris_bawah
+        sheet['C26'] = bast_data['judul_survei']
+        sheet['E28'] = formatted_nilai_kontrak
+        sheet['D29'] = bast_data['nilai_kontrak_tertulis']
+        sheet['D37'] = bast_data['nama_pihak_kedua']
+        sheet['D38'] = bast_data['jabatan_pihak_kedua']
+        sheet['J37'] = bast_data['nama_pihak_pertama']
+        sheet['J38'] = bast_data['jabatan_pihak_pertama']
+        # sheet['G10'] = formatted_date  # misalnya tanda tangan Jakarta, tgl
+
+        # Output response
+        filename = f"BAST_{bast_code}.xlsx"
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        workbook.save(response)
+        return response
+
+def split_to_two_cells(text, max_length=60):
+    if len(text) <= max_length:
+        return text, ""
+    else:
+        # Cari spasi terdekat agar tidak memotong di tengah kata
+        split_index = text.rfind(" ", 0, max_length)
+        if split_index == -1:
+            split_index = max_length
+        return text[:split_index], text[split_index+1:]
 
 @api_view(['GET'])
 def convert_pptx_to_image(request):
@@ -475,7 +714,7 @@ def export_existing_invoice_dp(request):
     # Add image to the specified cell location
     sheet.add_image(header_img, 'A1') 
     sheet.add_image(invoice_img, 'G8')
-    sheet.add_image(ttd_img, 'G37')
+    # sheet.add_image(ttd_img, 'G37')
 
     invoice_id = f"Inv No: {user_data['invoice_code']}"
 
