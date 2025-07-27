@@ -134,7 +134,7 @@ else:
             'NAME': 'siap', 
             'USER': 'postgres',
             'PASSWORD': 'secret99',
-            'HOST': 'localhost', 
+            'HOST': 'db', 
             'PORT': '5432',
 
         }

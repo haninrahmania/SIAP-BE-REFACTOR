@@ -146,6 +146,7 @@ def klien_list(request):
             kliens = kliens.filter(
                 Q(nama_klien__icontains=search_query) |
                 Q(nama_perusahaan__icontains=search_query) |
+                Q(jabatan__icontains=search_query) |
                 Q(daerah__icontains=search_query) |
                 Q(kategori_klien__icontains=search_query) |
                 Q(no_telp__icontains=search_query)
@@ -162,6 +163,7 @@ def klien_list(request):
                 'id': klien.id,
                 'nama_klien': klien.nama_klien,
                 'nama_perusahaan': klien.nama_perusahaan,
+                'jabatan': klien.jabatan,
                 'daerah': klien.daerah,
                 'kategori_klien': klien.kategori_klien,
                 'no_telp': klien.no_telp,
@@ -218,6 +220,7 @@ def klien_detail(request, id):
         'id': klien.id,
         'nama_klien': klien.nama_klien,
         'nama_perusahaan': klien.nama_perusahaan,
+        'jabatan': klien.jabatan,
         'daerah': klien.daerah,
         'kategori_klien': klien.kategori_klien,
         'no_telp': klien.no_telp,

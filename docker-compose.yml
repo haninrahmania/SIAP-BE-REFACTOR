@@ -49,6 +49,21 @@ version: '3.8'
 #   default:
 #     external: false
 
+# services:
+#   db:
+#     image: postgres:14-alpine
+#     ports:
+#       - '5432:5432'
+#     restart: 'no'
+#     environment:
+#       - POSTGRES_DB=siap
+#       - POSTGRES_USER=postgres
+#       - POSTGRES_PASSWORD=secret99
+#     volumes:
+#       - db:/var/lib/postgresql/data
+# volumes:
+#   db:
+
 services:
   db:
     image: postgres:14-alpine
@@ -61,6 +76,49 @@ services:
       - POSTGRES_PASSWORD=secret99
     volumes:
       - db:/var/lib/postgresql/data
+
+  # web:
+  #   image: python:3.11-slim
+  #   container_name: siap-web
+  #   volumes:
+  #     - .:/app
+  #     - ../siap-fe-refactor:/siap-fe-refactor
+  #   working_dir: /app
+  #   depends_on:
+  #     - db
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - DATABASE_URL=postgres://postgres:secret99@db:5432/siap
+  #   command: >
+  #     sh -c "
+  #       apt-get update &&
+  #       apt-get install -y libreoffice libicu-dev curl gnupg ca-certificates apt-transport-https &&
+  #       curl https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb -o packages-microsoft-prod.deb &&
+  #       dpkg -i packages-microsoft-prod.deb &&
+  #       apt-get update &&
+  #       apt-get install -y aspnetcore-runtime-7.0 &&
+  #       pip install -r requirements.txt &&
+  #       python manage.py migrate &&
+  #       gunicorn project_django.wsgi:application --bind 0.0.0.0:8000
+  #     "
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: siap-web
+    volumes:
+      - .:/app
+      - ../siap-fe-refactor:/siap-fe-refactor
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - DATABASE_URL=postgres://postgres:secret99@db:5432/siap
 volumes:
   db:
     driver: local

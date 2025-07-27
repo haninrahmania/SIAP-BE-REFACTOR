@@ -4,6 +4,8 @@ from .models import Survei
 from souvenir.models import Souvenir
 from tracker_survei.models import JumlahResponden
 from klien.models import DataKlien
+from django.utils import timezone
+from num2words import num2words
 
 class DataKlienSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
@@ -32,7 +34,7 @@ class SurveiGet(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'jumlah_responden_harian', 'klien_id', 'nomor_spk', 'harga_survei_terbilang'
         )
 
     def get_nama_klien(self, obj):
@@ -91,7 +93,7 @@ class SurveiPost(serializers.ModelSerializer):
             'tipe_survei', 'jumlah_responden', 'harga_survei',
             'tanggal_spk', 'tanggal_ws', 'tanggal_selesai',
             'milestone_1', 'milestone_2', 'milestone_3',
-            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir'
+            'souvenir', 'ppk', 'peneliti', 'jumlah_souvenir', 'nomor_spk', 'harga_survei_terbilang'
         )
 
     def get_nama_klien(self, obj):
@@ -138,7 +140,78 @@ class SurveiPost(serializers.ModelSerializer):
 
         return attrs
 
+    def update(self, instance, validated_data):
+        # Handle harga_survei_terbilang
+        if 'harga_survei' in validated_data:
+            harga = validated_data['harga_survei']
+            if harga is not None:
+                validated_data['harga_survei_terbilang'] = num2words(int(harga), lang='id').title() + " Rupiah"
+
+        # Handle stok souvenir
+        old_souvenir = instance.souvenir
+        old_jumlah = instance.jumlah_souvenir or 0
+
+        new_souvenir = validated_data.get('souvenir', old_souvenir)
+        new_jumlah = validated_data.get('jumlah_souvenir', old_jumlah)
+
+        # Validasi stok (optional, tapi best practice)
+        if new_souvenir == old_souvenir and new_souvenir:
+            diff = new_jumlah - old_jumlah
+            if diff > 0 and new_souvenir.jumlah_stok < diff:
+                raise serializers.ValidationError("Stok souvenir tidak mencukupi.")
+        elif new_souvenir != old_souvenir and new_souvenir:
+            if new_souvenir.jumlah_stok < new_jumlah:
+                raise serializers.ValidationError("Stok souvenir tidak mencukupi.")
+
+        # Simpan perubahan instance
+        instance = super().update(instance, validated_data)
+
+        # Update stok
+        if old_souvenir == new_souvenir:
+            diff = new_jumlah - old_jumlah
+            if diff != 0 and new_souvenir:
+                new_souvenir.jumlah_stok -= diff
+                new_souvenir.save()
+        else:
+            if old_souvenir:
+                old_souvenir.jumlah_stok += old_jumlah
+                old_souvenir.save()
+            if new_souvenir and new_jumlah:
+                new_souvenir.jumlah_stok -= new_jumlah
+                new_souvenir.save()
+
+        return instance
+    
+    # override method
     def create(self, validated_data):
+        today = timezone.now().date()
+        month = today.month
+        year = today.year
+        month_roman = int_to_roman(month)
+
+        # Hitung jumlah SPK yang sudah ada
+        existing_count = Survei.objects.filter(
+            tanggal_spk__year=year,
+            tanggal_spk__month=month
+        ).count()
+
+        # Format nomor SPK
+        next_number = existing_count + 1
+        formatted_number = f"{next_number:03d}"
+        nomor_spk = f"{formatted_number}/SPK/{month_roman}/{year}"
+        validated_data['nomor_spk'] = nomor_spk
+
+        # Fallback tanggal_spk
+        if not validated_data.get('tanggal_spk'):
+            validated_data['tanggal_spk'] = today
+
+        # Harga terbilang otomatis
+        harga = validated_data.get('harga_survei')
+        if harga:
+            terbilang = num2words(int(harga), lang='id').title() + " Rupiah"
+            validated_data['harga_survei_terbilang'] = terbilang
+
+        # Handle stok souvenir
         souvenir = validated_data.get('souvenir')
         jumlah_souvenir = validated_data.get('jumlah_souvenir', 0)
 
@@ -149,9 +222,6 @@ class SurveiPost(serializers.ModelSerializer):
             souvenir.save()
 
         return instance
-
-    def update(self, instance, validated_data):
-        return super().update(instance, validated_data)
 
 
 class SouvenirSerializer(serializers.ModelSerializer):
@@ -184,3 +254,8 @@ class JumlahRespondenSerializer(serializers.ModelSerializer):
     class Meta:
         model = JumlahResponden
         fields = ['jumlah', 'updated_at']
+
+# Tambahan helper function roman number
+def int_to_roman(month):
+    romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+    return romans[month - 1]

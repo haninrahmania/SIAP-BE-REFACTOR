@@ -56,6 +56,10 @@ class Survei(models.Model):
         related_name='survei_dengan_souvenir'
     )
 
+    # Tambahan nomor SPK dan harga terbilang
+    nomor_spk = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    harga_survei_terbilang = models.CharField(max_length=255, blank=True, null=True)
+
     def __str__(self):
         return f"{self.judul_survei} - {self.klien}"
 
