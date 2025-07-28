@@ -119,6 +119,17 @@ services:
       - PYTHONUNBUFFERED=1
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
       - DATABASE_URL=postgres://postgres:secret99@db:5432/siap
+  frontend:
+    build:
+      context: ../siap-fe-refactor/my-app
+      dockerfile: Dockerfile
+    container_name: siap-frontend
+    env_file:
+      - ../siap-fe-refactor/my-app/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web
 volumes:
   db:
     driver: local
