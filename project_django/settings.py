@@ -43,7 +43,7 @@ DEBUG = not PRODUCTION
 
 # ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'siap-be-production.up.railway.app', 'considerate-trust-production.up.railway.app']
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['vercel.app]
 
 # Application definition
 
