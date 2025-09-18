@@ -148,7 +148,7 @@ cryptography==45.0.5
 cycler==0.12.1
 Deprecated==1.2.18
 dj-database-url==1.0.0
-Django==5.2.5
+Django==5.1.4
 django-allauth==65.5.0
 django-axes==7.0.2
 django-cleanup==9.0.0
