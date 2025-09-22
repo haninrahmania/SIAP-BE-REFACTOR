@@ -43,7 +43,13 @@ DEBUG = not PRODUCTION
 
 # ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'siap-be-production.up.railway.app', 'considerate-trust-production.up.railway.app']
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "103.160.62.233",       # VPS IP, optional
+    "sistem-siap.com",
+    "www.sistem-siap.com",
+]
 
 # Application definition
 
@@ -128,17 +134,28 @@ if PRODUCTION:
         )
     }
 else:
+    # DATABASES = {
+    #     'default': {
+    #         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+    #         'NAME': 'siap', 
+    #         'USER': 'postgres',
+    #         'PASSWORD': 'secret99',
+    #         'HOST': 'db', 
+    #         'PORT': '5432',
+
+    #     }
+    # }
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',
-            'NAME': 'siap', 
-            'USER': 'postgres',
-            'PASSWORD': 'secret99',
-            'HOST': 'db', 
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'siapdb',
+            'USER': 'siapuser',
+            'PASSWORD': 'secretPassword123',
+            'HOST': 'localhost',
             'PORT': '5432',
-
         }
     }
+
 
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -171,7 +188,10 @@ AUTHENTICATION_BACKENDS = [
 
 
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:3000', "https://siap-fe-production.up.railway.app",]
+CSRF_TRUSTED_ORIGINS = [
+    "https://sistem-siap.com",
+    "https://www.sistem-siap.com",
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
@@ -205,8 +225,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Allow requests from the Next.js frontend
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Frontend URL
-    "https://siap-fe-production.up.railway.app"
+    "https://sistem-siap.com",
+    "https://www.sistem-siap.com",
 ]
 
 CORS_ALLOW_METHODS = [
