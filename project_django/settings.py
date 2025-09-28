@@ -145,6 +145,7 @@ else:
 
     #     }
     # }
+    # PROD
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -191,6 +192,7 @@ AUTHENTICATION_BACKENDS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://sistem-siap.com",
     "https://www.sistem-siap.com",
+    "http://localhost:3001",
 ]
 
 # Internationalization
@@ -227,6 +229,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     "https://sistem-siap.com",
     "https://www.sistem-siap.com",
+    "http://localhost:3001",
+
 ]
 
 CORS_ALLOW_METHODS = [

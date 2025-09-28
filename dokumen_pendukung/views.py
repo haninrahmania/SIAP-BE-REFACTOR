@@ -761,10 +761,10 @@ def export_existing_invoice_dp(request):
     invoice_img = Image(invoice_image_path)
     invoice_img.width, invoice_img.height = 275.9, 75.59
 
-    # Path to the image you want to add
-    ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
-    ttd_img = Image(ttd_image_path)
-    ttd_img.width, ttd_img.height = 314.83, 173.48
+    # # Path to the image you want to add
+    # ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
+    # ttd_img = Image(ttd_image_path)
+    # ttd_img.width, ttd_img.height = 314.83, 173.48
 
     # Add image to the specified cell location
     sheet.add_image(header_img, 'A1') 
@@ -844,15 +844,15 @@ def export_existing_invoice_final(request):
     invoice_img = Image(invoice_image_path)
     invoice_img.width, invoice_img.height = 275.9, 75.59
 
-    # Path to the image you want to add
-    ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
-    ttd_img = Image(ttd_image_path)
-    ttd_img.width, ttd_img.height = 314.83, 173.48
+    # # Path to the image you want to add
+    # ttd_image_path = os.path.join(settings.BASE_DIR, 'dokumen_pendukung/images/ttd.png')
+    # ttd_img = Image(ttd_image_path)
+    # ttd_img.width, ttd_img.height = 314.83, 173.48
 
     # Add image to the specified cell location
     sheet.add_image(header_img, 'A1') 
     sheet.add_image(invoice_img, 'G8')
-    sheet.add_image(ttd_img, 'G37')
+    # sheet.add_image(ttd_img, 'G37')
 
     invoice_id = f"Inv No: {user_data['invoice_code']}"
 
